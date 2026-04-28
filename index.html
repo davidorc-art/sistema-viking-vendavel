@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="pt-BR" translate="no">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="theme-color" content="#000000" />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <link rel="apple-touch-icon" href="/icon.svg" />
+    <title>Viking Studio</title>
+    <!-- Anti-cache script to rescue stuck PWAs in preview deployments -->
+    <script>
+      window.process = { env: {} };
+      try {
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.getRegistrations().then(function(registrations) {
+            for(let registration of registrations) {
+              registration.unregister();
+            }
+          });
+        }
+        // Force cleanup of old local storage that might cause crashes
+        if (localStorage.getItem('viking_settings')) {
+           // We keep settings, but if we need a hard reset we could do it here
+        }
+      } catch (err) {
+        console.error('SW Unregister failed', err);
+      }
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+
