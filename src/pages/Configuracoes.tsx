@@ -532,7 +532,11 @@ export default function Configuracoes() {
                   <button 
                     className="bg-primary hover:bg-primary-dark text-white font-bold py-4 px-10 rounded-2xl shadow-xl shadow-primary/20 transition-all flex items-center justify-center gap-3 active:scale-95"
                     onClick={() => {
-                      const planId = import.meta.env.VITE_MP_PLAN_ID || 'VOSSO_PLAN_ID';
+                      const planId = import.meta.env.VITE_MP_PLAN_ID;
+                      if (!planId || planId === 'VOSSO_PLAN_ID') {
+                        alert('Atenção Administrador: O ID do Plano (VITE_MP_PLAN_ID) não foi configurado. Crie o plano no Mercado Pago e adicione o ID nas variáveis de ambiente (.env).');
+                        return;
+                      }
                       const mpUrl = `https://www.mercadopago.com.br/subscriptions/checkout?preapproval_plan_id=${planId}&external_reference=${user?.id}`;
                       window.open(mpUrl, '_blank');
                     }}

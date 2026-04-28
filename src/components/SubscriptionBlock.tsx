@@ -55,7 +55,11 @@ export const SubscriptionBlock = () => {
           <button 
             className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-primary to-primary-dark hover:brightness-110 text-white font-bold py-4 px-6 rounded-xl transition-all"
             onClick={() => {
-              const planId = import.meta.env.VITE_MP_PLAN_ID || 'VOSSO_PLAN_ID';
+              const planId = import.meta.env.VITE_MP_PLAN_ID;
+              if (!planId || planId === 'VOSSO_PLAN_ID') {
+                alert('Atenção Administrador: O ID do Plano (VITE_MP_PLAN_ID) não foi configurado nas variáveis de ambiente. Crie um plano de assinatura no Mercado Pago e adicione o ID.');
+                return;
+              }
               const mpUrl = `https://www.mercadopago.com.br/subscriptions/checkout?preapproval_plan_id=${planId}&external_reference=${user?.id}`;
               window.open(mpUrl, '_blank');
             }}

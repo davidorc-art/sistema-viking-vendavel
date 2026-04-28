@@ -21,8 +21,17 @@ export default function Login() {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [loginMode, setLoginMode] = useState<'professional' | 'client'>('client');
+  const [authView, setAuthView] = useState<'login' | 'register'>('login');
   const [showRegistration, setShowRegistration] = useState(false);
   const isMounted = React.useRef(true);
+
+  // Professional Registration states
+  const [proRegData, setProRegData] = useState({
+    name: '',
+    email: '',
+    password: '',
+    studioName: ''
+  });
 
   // Registration states
   const [regData, setRegData] = useState({
@@ -150,6 +159,83 @@ export default function Login() {
     }
   };
 
+  const handleRegisterProfessional = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    setMessage(null);
+
+    try {
+      if (!proRegData.name || !proRegData.email || !proRegData.password || !proRegData.studioName) {
+        throw new Error('Por favor, preencha todos os campos.');
+      }
+
+      const authPromise = supabase.auth.signUp({
+        email: proRegData.email,
+        password: proRegData.password,
+        options: {
+          data: {
+            name: proRegData.name,
+            studio_name: proRegData.studioName,
+            role: 'professional' // Will be synced if you have triggers, or simply stored in raw_user_meta_data
+          }
+        }
+      });
+
+      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Tempo limite excedido pela conexão. Tente novamente.')), 15000));
+      const result: any = await Promise.race([authPromise, timeoutPromise]);
+      const { data, error } = result;
+
+      if (error) {
+        if (error.message.includes('rate limit')) {
+          throw new Error('Limite de envios de e-mail atingido no Supabase. Aguarde alguns instantes e tente novamente.');
+        }
+        throw error;
+      }
+      
+      // Fallback: If no trigger exists, but we are logged in, try to insert manually
+      if (data?.session && data?.user) {
+        try {
+          await supabase.from('professionals').upsert({
+            id: data.user.id,
+            name: proRegData.name,
+            email: proRegData.email,
+            role: 'Admin',
+            status: 'Ativo'
+          }, { onConflict: 'id' }).select();
+          
+          await supabase.from('settings').upsert({
+            id: '1',
+            studio_name: proRegData.studioName
+          }, { onConflict: 'id' }).select();
+        } catch (e) {
+          console.warn('Fallback insert failed, perhaps trigger already handled it or RLS blocked:', e);
+        }
+      }
+      
+      if (isMounted.current) {
+        if (data?.session) {
+           toast.success('Conta criada com sucesso! Redirecionando...');
+        } else {
+           toast.success('Sua conta foi criada! 7 dias grátis ativados. Enviamos um e-mail de confirmação.');
+           setAuthView('login');
+           setEmail(proRegData.email);
+           setPassword(proRegData.password);
+        }
+      }
+      
+    } catch (err: any) {
+      if (isMounted.current) {
+        setError(err.message || 'Erro ao registrar profissional.');
+        toast.error(err.message || 'Erro ao registrar profissional.');
+      }
+    } finally {
+      if (isMounted.current) {
+        setLoading(false);
+      }
+    }
+  };
+
   const handleRegisterClient = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -255,7 +341,7 @@ export default function Login() {
           {/* Login Mode Toggle */}
           <div className="flex bg-black/40 p-1 rounded-2xl border border-white/5 mb-8">
             <button 
-              onClick={() => { setLoginMode('client'); setError(null); }}
+              onClick={() => { setLoginMode('client'); setAuthView('login'); setError(null); }}
               className={cn(
                 "flex-1 py-3 px-4 rounded-xl text-xs font-bold uppercase tracking-widest transition-all",
                 loginMode === 'client' ? "bg-primary text-white shadow-lg scale-[1.02]" : "text-gray-500 hover:text-white"
@@ -275,39 +361,108 @@ export default function Login() {
           </div>
 
           {/* Form */}
-          <form onSubmit={handleAuth} className="space-y-6">
+          <form onSubmit={loginMode === 'professional' && authView === 'register' ? handleRegisterProfessional : handleAuth} className="space-y-6">
             {loginMode === 'professional' ? (
-              <>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-4">E-mail</label>
-                  <div className="relative group">
-                    <Mail className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-primary transition-colors" size={18} />
-                    <input 
-                      type="email" 
-                      required
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="seu@email.com"
-                      className="w-full bg-black/40 border border-white/5 rounded-2xl py-4 pl-14 pr-6 text-sm focus:border-primary/50 outline-none transition-all"
-                    />
+              authView === 'login' ? (
+                <>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-4">E-mail</label>
+                    <div className="relative group">
+                      <Mail className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-primary transition-colors" size={18} />
+                      <input 
+                        type="email" 
+                        required
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="seu@email.com"
+                        className="w-full bg-black/40 border border-white/5 rounded-2xl py-4 pl-14 pr-6 text-sm focus:border-primary/50 outline-none transition-all"
+                      />
+                    </div>
                   </div>
-                </div>
 
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-4">Senha</label>
-                  <div className="relative group">
-                    <Lock className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-primary transition-colors" size={18} />
-                    <input 
-                      type="password" 
-                      required
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="••••••••"
-                      className="w-full bg-black/40 border border-white/5 rounded-2xl py-4 pl-14 pr-6 text-sm focus:border-primary/50 outline-none transition-all"
-                    />
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-4">Senha</label>
+                    <div className="relative group">
+                      <Lock className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-primary transition-colors" size={18} />
+                      <input 
+                        type="password" 
+                        required
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="••••••••"
+                        className="w-full bg-black/40 border border-white/5 rounded-2xl py-4 pl-14 pr-6 text-sm focus:border-primary/50 outline-none transition-all"
+                      />
+                    </div>
                   </div>
-                </div>
-              </>
+                </>
+              ) : (
+                <>
+                  {/* SaaS Plan Banner */}
+                  <div className="bg-gradient-to-br from-primary/20 to-accent/10 border border-primary/30 rounded-2xl p-4 text-center">
+                    <h3 className="text-white font-bold mb-1">Crie seu Estúdio Hoje</h3>
+                    <p className="text-xs text-gray-300 mb-2">Plano Pro por R$ 70/mês. Cancele a qualquer momento.</p>
+                    <div className="inline-block bg-primary text-white text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-full">
+                      7 Dias Grátis
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                     <div className="grid grid-cols-2 gap-2">
+                       <div className="relative group">
+                        <User className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-primary transition-colors" size={16} />
+                        <input 
+                          type="text" 
+                          required
+                          value={proRegData.name}
+                          onChange={(e) => setProRegData({...proRegData, name: e.target.value})}
+                          placeholder="Seu Nome"
+                          className="w-full bg-black/40 border border-white/5 rounded-2xl py-3 pl-10 pr-3 text-xs focus:border-primary/50 outline-none transition-all"
+                        />
+                      </div>
+                      <div className="relative group">
+                        <ShieldCheck className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-primary transition-colors" size={16} />
+                         <input 
+                          type="text" 
+                          required
+                          value={proRegData.studioName}
+                          onChange={(e) => setProRegData({...proRegData, studioName: e.target.value})}
+                          placeholder="Nome do Estúdio"
+                          className="w-full bg-black/40 border border-white/5 rounded-2xl py-3 pl-10 pr-3 text-xs focus:border-primary/50 outline-none transition-all"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="relative group">
+                      <Mail className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-primary transition-colors" size={18} />
+                      <input 
+                        type="email" 
+                        required
+                        value={proRegData.email}
+                        onChange={(e) => setProRegData({...proRegData, email: e.target.value})}
+                        placeholder="E-mail profissional"
+                        className="w-full bg-black/40 border border-white/5 rounded-2xl py-4 pl-14 pr-6 text-sm focus:border-primary/50 outline-none transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="relative group">
+                      <Lock className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-primary transition-colors" size={18} />
+                      <input 
+                        type="password" 
+                        required
+                        value={proRegData.password}
+                        onChange={(e) => setProRegData({...proRegData, password: e.target.value})}
+                        placeholder="Senha (mínimo 6 caracteres)"
+                        className="w-full bg-black/40 border border-white/5 rounded-2xl py-4 pl-14 pr-6 text-sm focus:border-primary/50 outline-none transition-all"
+                        minLength={6}
+                      />
+                    </div>
+                  </div>
+                </>
+              )
             ) : (
               <div className="space-y-2">
                 <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-4">Número do CPF</label>
@@ -358,7 +513,9 @@ export default function Login() {
               ) : (
                 <>
                   <LogIn size={20} />
-                  {loginMode === 'professional' ? 'Entrar' : 'Acessar Portal'}
+                  {loginMode === 'professional' 
+                    ? (authView === 'login' ? 'Entrar no Sistema' : 'Começar 7 Dias Grátis') 
+                    : 'Acessar Portal'}
                 </>
               )}
             </button>
@@ -372,6 +529,17 @@ export default function Login() {
                 className="text-xs text-gray-500 hover:text-primary transition-colors font-bold uppercase tracking-widest"
               >
                 Ainda não sou cliente? Cadastrar Agora
+              </button>
+            )}
+            
+            {loginMode === 'professional' && (
+              <button 
+                onClick={() => setAuthView(prev => prev === 'login' ? 'register' : 'login')}
+                className="text-xs text-gray-500 hover:text-primary transition-colors font-bold uppercase tracking-widest"
+              >
+                {authView === 'login' 
+                  ? 'Não tem um estúdio? Cadastre-se e ganhe 7 dias' 
+                  : 'Já tem uma conta? Fazer Login'}
               </button>
             )}
           </div>

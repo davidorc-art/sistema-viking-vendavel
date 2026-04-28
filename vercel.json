@@ -1,12 +1,13 @@
 {
-  "version": 2,
   "outputDirectory": "dist",
   "cleanUrls": true,
-  "framework": "vite",
   "rewrites": [
     {
       "source": "/api/(.*)",
       "destination": "/api/$1"
+    },
+    {
+      "handle": "filesystem"
     },
     {
       "source": "/(.*)",
