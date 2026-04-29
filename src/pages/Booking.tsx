@@ -240,6 +240,18 @@ export default function Booking() {
   const [clientFoundMessage, setClientFoundMessage] = useState('');
 
   React.useEffect(() => {
+    if (!isSyncing && professionals && professionals.length > 0) {
+      // If no professional is selected, or the selected one isn't found
+      if (!formData.profId || !professionals.find(p => p.id === formData.profId)) {
+        // Auto-select the first professional if there's only one
+        if (professionals.length === 1) {
+          setFormData(prev => ({ ...prev, profId: professionals[0].id }));
+        }
+      }
+    }
+  }, [isSyncing, professionals, formData.profId]);
+
+  React.useEffect(() => {
     const searchClient = async () => {
       const cleanCpf = formData.cpf.replace(/\D/g, '');
       if (cleanCpf.length === 11 && validateCPF(cleanCpf)) {

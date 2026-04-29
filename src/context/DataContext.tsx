@@ -918,7 +918,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
             stock: 0,
             minStock: 5,
             unit: 'un',
-            status: 'Esgotado',
+            status: 'Esgotado' as "Em estoque" | "Baixo" | "Esgotado",
             price: 0,
             user_id: user.id
           }));
@@ -929,10 +929,11 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
 
             const insertPromises = newItems.map(async (item) => {
             try {
-              const { error } = await withTimeout(
-                supabase.from('inventory').insert([toSnakeCase(item)]),
+              const response: any = await withTimeout(
+                supabase.from('inventory').insert([toSnakeCase(item)]) as any,
                 15000 // 15s per item
               );
+              const { error } = response || {};
               if (error) {
                 console.error(`SEED ERROR: Item ${item.name} failed:`, error.message);
                 throw error;
@@ -1070,10 +1071,11 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
             if (dbCat.type === 'Saída') dbCat.type = 'Despesa';
 
             try {
-              const { error } = await withTimeout(
-                supabase.from('management_categories').insert([dbCat]),
+              const response: any = await withTimeout(
+                supabase.from('management_categories').insert([dbCat]) as any,
                 10000 // 10s per category
               );
+              const { error } = response || {};
               if (error) {
                 console.error(`SEED ERROR: Category ${cat.name} failed:`, error.message);
                 throw error;
@@ -1153,7 +1155,9 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
         { key: 'managementRules', table: 'management_rules', validColumns: ['id', 'name', 'category_id', 'amount', 'type', 'user_id', 'created_at'] }
       ];
 
-      for (const { key, table, validColumns, mapping } of tables) {
+      for (const tableConfig of tables) {
+        const { key, table, validColumns } = tableConfig;
+        const mapping = (tableConfig as any).mapping;
         const items = (data as any)[key];
         if (items && Array.isArray(items) && items.length > 0) {
           // Clean and filter items
@@ -1162,14 +1166,14 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
             const payload: any = {};
             
             // Apply mappings if any
-            if (mapping) {
-              Object.entries(mapping).forEach(([oldKey, newKey]) => {
-                if (oldKey in snakeItem) {
-                  snakeItem[newKey] = snakeItem[oldKey];
-                  delete snakeItem[oldKey];
-                }
-              });
-            }
+              if (mapping) {
+                Object.entries(mapping).forEach(([oldKey, newKey]) => {
+                  if (typeof newKey === 'string' && oldKey in snakeItem) {
+                    snakeItem[newKey] = snakeItem[oldKey];
+                    delete snakeItem[oldKey];
+                  }
+                });
+              }
 
             // Filter columns
             Object.keys(snakeItem).forEach(itemKey => {
