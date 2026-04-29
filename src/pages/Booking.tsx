@@ -275,15 +275,14 @@ export default function Booking() {
         setIsSearchingClient(true);
         try {
           const formattedCpf = formatCPF(cleanCpf);
-          // Query Supabase directly since clients array might be empty for public routes
-          const { data, error } = await supabase
-            .from('clients')
-            .select('*')
-            .or(`cpf.ilike.%${cleanCpf}%,cpf.ilike.%${formattedCpf}%`);
-
-          if (!error && data && data.length > 0) {
+          // Use public proxy to bypass RLS on clients table
+          const res = await fetch(`/api/public/clients/search?cpf=${cleanCpf}`);
+          const result = await res.json();
+          
+          if (res.ok && result.success && result.data && result.data.length > 0) {
+            const data = result.data;
             // Find exact match
-            const exactMatch = data.find(c => (c.cpf || '').replace(/\D/g, '') === cleanCpf);
+            const exactMatch = data.find((c: any) => (c.cpf || '').replace(/\D/g, '') === cleanCpf);
             
             if (exactMatch) {
               setFormData(prev => ({

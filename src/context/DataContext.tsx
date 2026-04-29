@@ -168,6 +168,13 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   const location = useLocation();
 
   const [clients, setClients] = useState<Client[]>([]);
+  const rawPath = location.pathname.toLowerCase().replace(/\/+/g, '/');
+  const finalPath = (rawPath.length > 1 && rawPath.endsWith('/')) ? rawPath.slice(0, -1) : rawPath;
+  const isLoyaltyRoute = finalPath.includes('/loyalty') || finalPath.includes('/portal') || finalPath.includes('/perfil-cliente');
+  const isBookingRoute = finalPath.includes('/booking');
+  const isRescheduleRoute = finalPath.includes('/reschedule');
+  const isConsentRoute = finalPath.includes('/consent');
+  const isPagamentoRoute = finalPath.includes('/pagamento');
   const [professionals, setProfessionals] = useState<Professional[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -522,22 +529,13 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
 
-    // Resilient path normalization for sync detection
-    const rawPath = location.pathname.toLowerCase().replace(/\/+/g, '/');
-    const finalPath = (rawPath.length > 1 && rawPath.endsWith('/')) ? rawPath.slice(0, -1) : rawPath;
-
     // Detect public routes even if they have weird prefixes
     const checkPublic = (p: string) => {
-      const publicPaths = ['/loyalty', '/booking', '/reschedule', '/consent', '/pagamento', '/portal'];
+      const publicPaths = ['/loyalty', '/booking', '/reschedule', '/consent', '/pagamento', '/portal', '/perfil-cliente'];
       return publicPaths.some(pub => p === pub || p.startsWith(`${pub}/`) || p.includes(`/login${pub}`));
     };
 
     const isPublicPath = checkPublic(finalPath);
-    const isLoyaltyRoute = finalPath.includes('/loyalty') || finalPath.includes('/portal');
-    const isBookingRoute = finalPath.includes('/booking');
-    const isRescheduleRoute = finalPath.includes('/reschedule');
-    const isConsentRoute = finalPath.includes('/consent');
-    const isPagamentoRoute = finalPath.includes('/pagamento');
     
     if (!user && !isPublicPath) {
       console.log('SYNC: Usuário não autenticado e não é rota pública. Path:', finalPath);

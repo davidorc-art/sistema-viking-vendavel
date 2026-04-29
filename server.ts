@@ -221,6 +221,29 @@ async function startServer() {
     }
   });
 
+  app.get('/api/public/clients/search', async (req, res) => {
+    try {
+      const admin = getSupabaseAdmin();
+      if (!admin) return res.status(500).json({ error: 'DB not configured' });
+      
+      const { cpf } = req.query;
+      if (!cpf || typeof cpf !== 'string') return res.status(400).json({ error: 'CPF required' });
+      
+      const cleanCpf = cpf.replace(/\D/g, '');
+      const formattedCpf = cleanCpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
+      
+      const { data, error } = await admin
+        .from('clients')
+        .select('*')
+        .or(`cpf.eq.${cleanCpf},cpf.eq.${formattedCpf}`);
+      
+      if (error) throw error;
+      res.json({ success: true, data });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   app.post('/api/public/clients', async (req, res) => {
     try {
       const admin = getSupabaseAdmin();
