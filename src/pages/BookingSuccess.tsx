@@ -10,14 +10,15 @@ export default function BookingSuccess() {
   const serviceName = searchParams.get('service') || '';
   
   const method = searchParams.get('method') || 'mp';
+  const isInfinitePay = method === 'infinitePay';
   
   const [status, setStatus] = useState<'checking' | 'paid' | 'pending'>(
-    isFree ? 'paid' : 
-    (method === 'infinitePay' ? 'pending' : (appointmentId ? 'checking' : 'pending'))
+    isFree || isInfinitePay ? 'paid' : 
+    (appointmentId ? 'checking' : 'pending')
   );
 
   useEffect(() => {
-    if (!appointmentId || isFree || method === 'infinitePay') return;
+    if (!appointmentId || isFree || isInfinitePay) return;
 
     let attempts = 0;
     const maxAttempts = 15; // 30 seconds total (every 2s)
@@ -111,12 +112,17 @@ export default function BookingSuccess() {
               <CheckCircle size={48} className="text-success" />
             </motion.div>
 
-            <h1 className="text-3xl md:text-4xl font-serif italic text-[#c5a059] mb-4">
-              {isFree ? 'Agendamento Recebido!' : 'Pagamento Confirmado!'}
+            <h1 className="text-3xl md:text-4xl font-serif italic text-accent mb-4 text-[#c5a059]">
+              {isFree || isInfinitePay ? 'Agendamento Recebido!' : 'Pagamento Confirmado!'}
             </h1>
             <p className="text-[#8e9299] mb-8">
-              Skål! {isFree ? 'Seu agendamento foi recebido com sucesso' : 'Seu pagamento foi processado com sucesso'} e seu agendamento foi enviado para aprovação final do estúdio.
+              Skål! {isFree || isInfinitePay ? 'Seu agendamento foi recebido com sucesso' : 'Seu pagamento foi processado com sucesso'} e sua reserva foi enviada para o clã.
             </p>
+            {isInfinitePay && (
+              <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest -mt-4 mb-8 border border-white/5 p-4 rounded-2xl bg-white/5">
+                Nota: O pagamento via InfinitePay é processado manualmente. Assim que o valor for identificado em nosso sistema, seu status será atualizado.
+              </p>
+            )}
           </>
         )}
 
@@ -124,12 +130,12 @@ export default function BookingSuccess() {
           <div className="bg-[#0a0a0a] border border-[#3a3a3a] rounded-3xl p-6 mb-8 text-left space-y-4">
             <div className="flex items-start gap-4">
               <div className="p-2 rounded-xl bg-primary/10 text-primary">
-                <Calendar size={20} />
+                <CheckCircle size={20} />
               </div>
               <div>
-                <h4 className="text-sm font-bold uppercase tracking-widest text-primary">Próximos Passos</h4>
+                <h4 className="text-sm font-bold uppercase tracking-widest text-primary">Missão Cumprida</h4>
                 <p className="text-xs text-[#8e9299] mt-1">
-                  Fique atento ao seu WhatsApp. Assim que o profissional confirmar o horário, você receberá uma notificação.
+                  Não é necessário fazer mais nada. Mantenha seu WhatsApp por perto para receber a confirmação final do profissional.
                 </p>
               </div>
             </div>
