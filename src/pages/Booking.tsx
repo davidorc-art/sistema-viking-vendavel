@@ -83,13 +83,30 @@ export default function Booking() {
     return null;
   }, [selectedServiceObj, professionals, profIdParam, formData.profId]);
 
+  // Update formData.profId once when professionals are loaded and profIdParam matches
+  React.useEffect(() => {
+    if (!isSyncing && professionals.length > 0 && !formData.profId && profIdParam) {
+      const match = professionals.find(p => 
+        p.id === profIdParam || 
+        p.name.toLowerCase() === profIdParam.toLowerCase() ||
+        p.name.toLowerCase().includes(profIdParam.toLowerCase())
+      );
+      if (match) {
+        setFormData(prev => ({ ...prev, profId: match.id }));
+      }
+    }
+  }, [isSyncing, professionals, profIdParam, formData.profId]);
+
   const professional = professionals.find(p => 
-    p.id === profIdParam || 
-    (profIdParam && p.name.toLowerCase() === profIdParam.toLowerCase()) ||
-    (profIdParam && p.name.toLowerCase().includes(profIdParam.toLowerCase())) ||
     p.id === formData.profId ||
-    p.id === autoProfId
+    (!formData.profId && (
+      p.id === profIdParam || 
+      (profIdParam && p.name.toLowerCase() === profIdParam.toLowerCase()) ||
+      (profIdParam && p.name.toLowerCase().includes(profIdParam.toLowerCase())) ||
+      p.id === autoProfId
+    ))
   );
+  
   const profId = professional?.id || formData.profId || autoProfId;
   
   React.useEffect(() => {
@@ -839,23 +856,7 @@ export default function Booking() {
           {/* DEBUG INFO - REMOVE LATER */}
           <div style={{ display: 'none' }} id="debug-info" data-appts={appointments.length} data-blocks={blockedTimes.length} data-prof={profId}></div>
 
-          {!professional && profIdParam ? (
-            <div className="max-w-md w-full bg-[#151619] border border-white/5 rounded-[40px] p-12 shadow-2xl relative z-10 text-center space-y-6">
-              <div className="w-24 h-24 rounded-full bg-white/5 flex items-center justify-center mx-auto border border-white/10">
-                <User size={48} className="text-white/20" />
-              </div>
-              <h2 className="text-2xl font-serif italic text-primary">Profissional não encontrado</h2>
-              <p className="text-xs text-gray-500 uppercase tracking-widest leading-relaxed">
-                 O elo com este profissional parece ter se quebrado nos salões de Valhalla.
-              </p>
-              <button 
-                onClick={() => navigate('/')}
-                className="w-full py-4 bg-primary text-black rounded-2xl font-black uppercase tracking-widest text-xs hover:scale-105 transition-all"
-              >
-                Voltar ao Início
-              </button>
-            </div>
-          ) : success ? (
+          {success ? (
         <motion.div 
           initial={{ opacity: 0, scale: 0.9 }} 
           animate={{ opacity: 1, scale: 1 }} 
