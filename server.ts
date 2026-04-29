@@ -265,7 +265,7 @@ async function startServer() {
     }
   });
 
-  app.put('/api/public/clients/:id', async (req, res) => {
+  app.post('/api/public/clients/update/:id', async (req, res) => {
     try {
       const admin = getSupabaseAdmin();
       if (!admin) return res.status(500).json({ error: 'DB not configured' });
@@ -297,7 +297,7 @@ async function startServer() {
     }
   });
 
-  app.put('/api/public/appointments/:id', async (req, res) => {
+  app.post('/api/public/appointments/update/:id', async (req, res) => {
     try {
       const admin = getSupabaseAdmin();
       if (!admin) return res.status(500).json({ error: 'DB not configured' });

@@ -168,13 +168,22 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   const location = useLocation();
 
   const [clients, setClients] = useState<Client[]>([]);
-  const rawPath = location.pathname.toLowerCase().replace(/\/+/g, '/');
-  const finalPath = (rawPath.length > 1 && rawPath.endsWith('/')) ? rawPath.slice(0, -1) : rawPath;
-  const isLoyaltyRoute = finalPath.includes('/loyalty') || finalPath.includes('/portal') || finalPath.includes('/perfil-cliente');
-  const isBookingRoute = finalPath.includes('/booking');
-  const isRescheduleRoute = finalPath.includes('/reschedule');
-  const isConsentRoute = finalPath.includes('/consent');
-  const isPagamentoRoute = finalPath.includes('/pagamento');
+
+  const routeFlags = React.useMemo(() => {
+    const rawPath = location.pathname.toLowerCase().replace(/\/+/g, '/');
+    const finalPath = (rawPath.length > 1 && rawPath.endsWith('/')) ? rawPath.slice(0, -1) : rawPath;
+    return {
+      finalPath,
+      isLoyaltyRoute: finalPath.includes('/loyalty') || finalPath.includes('/portal') || finalPath.includes('/perfil-cliente'),
+      isBookingRoute: finalPath.includes('/booking'),
+      isRescheduleRoute: finalPath.includes('/reschedule'),
+      isConsentRoute: finalPath.includes('/consent'),
+      isPagamentoRoute: finalPath.includes('/pagamento')
+    };
+  }, [location.pathname]);
+
+  const { finalPath, isLoyaltyRoute, isBookingRoute, isRescheduleRoute, isConsentRoute, isPagamentoRoute } = routeFlags;
+
   const [professionals, setProfessionals] = useState<Professional[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -717,7 +726,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       // Settings é um caso especial (.single())
       try {
         let settingsData = null;
-        if (!user && (isBookingRoute || isConsentRoute || isRescheduleRoute)) {
+        if (!user && (isBookingRoute || isConsentRoute || isRescheduleRoute || isPagamentoRoute || isLoyaltyRoute)) {
           const res = await fetch('/api/public/booking-data');
           const proxyData = await res.json();
           settingsData = proxyData.settings;
@@ -768,11 +777,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     const normalizedPath = location.pathname.toLowerCase().replace(/\/+/g, '/');
     const finalPath = normalizedPath.length > 1 && normalizedPath.endsWith('/') ? normalizedPath.slice(0, -1) : normalizedPath;
     
-    const isPublicRoute = finalPath.startsWith('/loyalty') || 
-                         finalPath.startsWith('/booking') || 
-                         finalPath.startsWith('/reschedule') || 
-                         finalPath.startsWith('/consent') ||
-                         finalPath.startsWith('/portal');
+    const isPublicRoute = isLoyaltyRoute || isBookingRoute || isRescheduleRoute || isConsentRoute || isPagamentoRoute;
     
     if (!user && isPublicRoute && !authLoading) {
       console.log('SYNC: Public route change detected, re-fetching...');
@@ -1557,10 +1562,10 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       });
 
       let error;
-      if (!user && (isBookingRoute || isConsentRoute || isRescheduleRoute)) {
+      if (!user && (isBookingRoute || isConsentRoute || isRescheduleRoute || isPagamentoRoute || isLoyaltyRoute)) {
         try {
-          const res = await fetch(`/api/public/clients/${id}`, {
-            method: 'PUT',
+          const res = await fetch(`/api/public/clients/update/${id}`, {
+            method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
           });
@@ -1618,7 +1623,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     
     try {
       let data, error;
-      if (!user && (isBookingRoute || isConsentRoute || isRescheduleRoute)) {
+      if (!user && (isBookingRoute || isConsentRoute || isRescheduleRoute || isPagamentoRoute || isLoyaltyRoute)) {
         const res = await fetch('/api/public/clients', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1868,7 +1873,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     
     try {
       let data, error;
-      if (!user && (isBookingRoute || isConsentRoute || isRescheduleRoute)) {
+      if (!user && (isBookingRoute || isConsentRoute || isRescheduleRoute || isPagamentoRoute || isLoyaltyRoute)) {
         const res = await fetch('/api/public/appointments', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -2049,9 +2054,9 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       console.log('DB: Payload convertido para snake_case com mapeamento extra:', payload);
       
       let data, error;
-      if (!user && (isBookingRoute || isConsentRoute || isRescheduleRoute)) {
-        const res = await fetch(`/api/public/appointments/${id}`, {
-          method: 'PUT',
+      if (!user && (isBookingRoute || isConsentRoute || isRescheduleRoute || isPagamentoRoute || isLoyaltyRoute)) {
+        const res = await fetch(`/api/public/appointments/update/${id}`, {
+          method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
