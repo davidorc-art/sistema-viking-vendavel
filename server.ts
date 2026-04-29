@@ -232,14 +232,19 @@ async function startServer() {
       const cleanCpf = cpf.replace(/\D/g, '');
       const formattedCpf = cleanCpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
       
+      console.log('SERVER: Searching client with CPF:', { cleanCpf, formattedCpf });
+      
       const { data, error } = await admin
         .from('clients')
         .select('*')
         .or(`cpf.eq.${cleanCpf},cpf.eq.${formattedCpf}`);
       
       if (error) throw error;
-      res.json({ success: true, data });
+      
+      console.log('SERVER: Search result count:', data?.length || 0);
+      res.json({ success: true, data: data || [] });
     } catch (err: any) {
+      console.error('SERVER: Search error:', err);
       res.status(500).json({ error: err.message });
     }
   });
@@ -250,11 +255,12 @@ async function startServer() {
       if (!admin) return res.status(500).json({ error: 'DB not configured' });
       
       const payload = req.body;
-      const { data, error } = await admin.from('clients').insert([payload]);
+      const { data, error } = await admin.from('clients').insert([payload]).select();
       
       if (error) throw error;
-      res.json({ success: true, data });
+      res.json({ success: true, data: data?.[0] || null });
     } catch (err: any) {
+      console.error('SERVER: Insert client error:', err);
       res.status(500).json({ error: err.message });
     }
   });
@@ -265,11 +271,12 @@ async function startServer() {
       if (!admin) return res.status(500).json({ error: 'DB not configured' });
       
       const payload = req.body;
-      const { data, error } = await admin.from('clients').update(payload).eq('id', req.params.id);
+      const { data, error } = await admin.from('clients').update(payload).eq('id', req.params.id).select();
       
       if (error) throw error;
-      res.json({ success: true });
+      res.json({ success: true, data: data?.[0] || null });
     } catch (err: any) {
+      console.error('SERVER: Update client error:', err);
       res.status(500).json({ error: err.message });
     }
   });
@@ -280,11 +287,12 @@ async function startServer() {
       if (!admin) return res.status(500).json({ error: 'DB not configured' });
       
       const payload = req.body;
-      const { data, error } = await admin.from('appointments').insert([payload]);
+      const { data, error } = await admin.from('appointments').insert([payload]).select();
       
       if (error) throw error;
-      res.json({ success: true, data });
+      res.json({ success: true, data: data?.[0] || null });
     } catch (err: any) {
+      console.error('SERVER: Insert appt error:', err);
       res.status(500).json({ error: err.message });
     }
   });
@@ -295,11 +303,12 @@ async function startServer() {
       if (!admin) return res.status(500).json({ error: 'DB not configured' });
       
       const payload = req.body;
-      const { data, error } = await admin.from('appointments').update(payload).eq('id', req.params.id);
+      const { data, error } = await admin.from('appointments').update(payload).eq('id', req.params.id).select();
       
       if (error) throw error;
-      res.json({ success: true });
+      res.json({ success: true, data: data?.[0] || null });
     } catch (err: any) {
+      console.error('SERVER: Update appt error:', err);
       res.status(500).json({ error: err.message });
     }
   });

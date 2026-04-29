@@ -1558,13 +1558,22 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
 
       let error;
       if (!user && (isBookingRoute || isConsentRoute || isRescheduleRoute)) {
-        const res = await fetch(`/api/public/clients/${id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-        const result = await res.json();
-        if (!res.ok) throw new Error(result.error);
+        try {
+          const res = await fetch(`/api/public/clients/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          
+          if (!res.ok) {
+            const errorText = await res.text();
+            let result;
+            try { result = JSON.parse(errorText); } catch(e) { result = { error: errorText }; }
+            throw new Error(result.error || `Server error: ${res.status}`);
+          }
+        } catch (e: any) {
+          error = e;
+        }
       } else {
         const result = await supabase.from('clients').update(payload).eq('id', id);
         error = result.error;
@@ -1615,9 +1624,16 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
-        const result = await res.json();
-        if (!res.ok) throw new Error(result.error);
-        data = result.data;
+        
+        if (res.ok) {
+          const result = await res.json();
+          data = result.data;
+        } else {
+          const errorText = await res.text();
+          let result;
+          try { result = JSON.parse(errorText); } catch(e) { result = { error: errorText }; }
+          throw new Error(result.error || `Server error: ${res.status}`);
+        }
       } else {
         const result = await withTimeout(supabase.from('clients').insert([payload]).select() as any) as any;
         data = result.data;
@@ -1858,9 +1874,16 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
-        const result = await res.json();
-        if (!res.ok) throw new Error(result.error);
-        data = result.data;
+        
+        if (res.ok) {
+          const result = await res.json();
+          data = result.data;
+        } else {
+          const errorText = await res.text();
+          let result;
+          try { result = JSON.parse(errorText); } catch(e) { result = { error: errorText }; }
+          throw new Error(result.error || `Server error: ${res.status}`);
+        }
       } else {
         const result = await withTimeout(supabase.from('appointments').insert([payload]).select() as any) as any;
         data = result.data;
@@ -2032,9 +2055,16 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
-        const result = await res.json();
-        if (!res.ok) throw new Error(result.error);
-        data = [{ id }]; // Mock success data for length check
+        
+        if (res.ok) {
+          const result = await res.json();
+          data = [{ id }]; // Mock success data for length check
+        } else {
+          const errorText = await res.text();
+          let result;
+          try { result = JSON.parse(errorText); } catch(e) { result = { error: errorText }; }
+          throw new Error(result.error || `Server error: ${res.status}`);
+        }
       } else {
         const result = await supabase
           .from('appointments')

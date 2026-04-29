@@ -277,9 +277,19 @@ export default function Booking() {
           const formattedCpf = formatCPF(cleanCpf);
           // Use public proxy to bypass RLS on clients table
           const res = await fetch(`/api/public/clients/search?cpf=${cleanCpf}`);
-          const result = await res.json();
+          let result: any = null;
           
-          if (res.ok && result.success && result.data && result.data.length > 0) {
+          if (res.ok) {
+            try {
+              result = await res.json();
+            } catch (e) {
+              console.error('Error parsing JSON response for client search:', e);
+            }
+          } else {
+            console.warn('Client search API returned error status:', res.status);
+          }
+          
+          if (result && result.success && result.data && result.data.length > 0) {
             const data = result.data;
             // Find exact match
             const exactMatch = data.find((c: any) => (c.cpf || '').replace(/\D/g, '') === cleanCpf);
