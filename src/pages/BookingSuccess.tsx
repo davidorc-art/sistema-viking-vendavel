@@ -9,10 +9,15 @@ export default function BookingSuccess() {
   const appointmentId = searchParams.get('appointmentId');
   const serviceName = searchParams.get('service') || '';
   
-  const [status, setStatus] = useState<'checking' | 'paid' | 'pending'>(isFree ? 'paid' : (appointmentId ? 'checking' : 'pending'));
+  const method = searchParams.get('method') || 'mp';
+  
+  const [status, setStatus] = useState<'checking' | 'paid' | 'pending'>(
+    isFree ? 'paid' : 
+    (method === 'infinitePay' ? 'pending' : (appointmentId ? 'checking' : 'pending'))
+  );
 
   useEffect(() => {
-    if (!appointmentId || isFree) return;
+    if (!appointmentId || isFree || method === 'infinitePay') return;
 
     let attempts = 0;
     const maxAttempts = 15; // 30 seconds total (every 2s)

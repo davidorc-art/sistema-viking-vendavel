@@ -241,6 +241,16 @@ const ProfessionalModal = ({
                         />
                       </div>
                     </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2 block font-bold text-primary">InfinitePay TAG</label>
+                      <input 
+                        type="text"
+                        value={formData.infinitePayTag || ''}
+                        onChange={e => setFormData({ ...formData, infinitePayTag: e.target.value })}
+                        placeholder="TAG personalizada InfinitePay"
+                        className="w-full bg-primary/5 border border-primary/20 rounded-xl py-3 px-4 text-sm focus:outline-none focus:border-primary"
+                      />
+                    </div>
                   </div>
 
                   <div>

@@ -416,8 +416,8 @@ export default function ImportLegacy() {
             id: p[0], nome: p[1], papel: p[2] 
           })),
           appointments: (compactData.AGE || []).map((a: any) => ({ 
-            id: a[0], cliente_id: a[1], profissional_id: a[2], data: a[3], hora: a[4], 
-            status: a[5] === 'inadimplente' ? 'Falta' : a[5], valor: a[6] 
+            id: a[0], clientId: a[1], professionalId: a[2], date: a[3], time: a[4], 
+            status: a[5] === 'inadimplente' ? 'Falta' : a[5], value: a[6] 
           })),
           transactions: (compactData.FIN || []).map((f: any) => ({ 
             id: f[0], tipo: f[1] === 'entrada' ? 'Receita' : 'Despesa', 

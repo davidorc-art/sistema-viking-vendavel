@@ -241,6 +241,8 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   });
 
   const [isSyncing, setIsSyncing] = useState(true);
+  const inventorySeededRef = useRef(false);
+  const categoriesSeededRef = useRef(false);
 
   // Sanitization helper
   const sanitize = {
@@ -289,9 +291,9 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
 
       return {
         id: String(a.id || ''),
-        clientId: String(a.clientId || a.clientid || a.client_id || a.clienteId || a.cliente_id || ''),
+        clientId: String(a.client_id || a.clientid || a.cliente_id || a.clientId || ''),
         clientName: String(a.clientName || a.clientname || a.client_name || a.nomeCliente || a.cliente || 'Cliente'),
-        professionalId: String(a.professionalId || a.professionalid || a.professional_id || a.profissionalId || a.profissional_id || ''),
+        professionalId: String(a.professional_id || a.professionalid || a.profissional_id || a.professionalId || ''),
         professionalName: String(a.professionalName || a.professionalname || a.professional_name || a.nomeProfissional || a.profissional || 'Profissional'),
         service: String(a.service || a.servico || a.descricao_servico || a.descricao || 'Serviço'),
         date: (String(a.date || a.data || a.dados || '').split('T')[0]) || new Date().toISOString().split('T')[0],
@@ -355,7 +357,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       name: String(i.name || 'Item'),
       category: String(i.category || 'Geral'),
       stock: Number(i.stock || 0),
-      minStock: Number(i.minStock || i.minstock || 5),
+      minStock: Number(i.minStock || i.min_stock || i.minstock || 5),
       unit: String(i.unit || 'un'),
       status: (['Em estoque', 'Baixo', 'Esgotado'].includes(i.status) ? i.status : 'Em estoque') as any,
       price: Number(i.price || 0)
@@ -493,7 +495,8 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
         pixName: s.pix_name || s.pixname || defaultSettings.pixName,
         city: s.city || defaultSettings.city,
         activityLog: s.activity_log !== undefined ? s.activity_log : (s.activitylog !== undefined ? s.activitylog : defaultSettings.activityLog),
-        twoFactor: s.two_factor !== undefined ? s.two_factor : (s.twofactor !== undefined ? s.twofactor : defaultSettings.twoFactor)
+        twoFactor: s.two_factor !== undefined ? s.two_factor : (s.twofactor !== undefined ? s.twofactor : defaultSettings.twoFactor),
+        infinitePayTag: s.infinite_pay_tag || s.infinitepay_tag || s.infinitePayTag || s.infinity_pay_tag || s.infinitypay_tag || defaultSettings.infinitePayTag
       };
     }
   };
@@ -884,7 +887,8 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   // Seed inventory with requested items if they don't exist
   useEffect(() => {
     const seedRequestedInventory = async () => {
-      if (!isSyncing && user) {
+      if (!isSyncing && user && !inventorySeededRef.current) {
+        inventorySeededRef.current = true;
         const requestedItems = [
           '3RL', '5RL', '7RL', '9RL', '11RL', '13RL', '15RL', '18RS', '15M1', '25M1', '15MG', '25MG'
         ];
@@ -894,25 +898,50 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
         const missingItems = requestedItems.filter(name => !currentInventoryNames.has(name.toUpperCase()));
 
         if (missingItems.length > 0) {
-          console.log('SEED: Adding missing requested inventory items:', missingItems);
-          // Add items one by one, but the check above should prevent duplicates on re-renders
-          for (const name of missingItems) {
+          console.log('SEED: Adding missing requested inventory items (Bulk):', missingItems);
+          
+          const newItems = missingItems.map(name => ({
+            id: generateId(),
+            name: name.toUpperCase(),
+            category: 'Agulhas',
+            stock: 0,
+            minStock: 5,
+            unit: 'un',
+            status: 'Esgotado',
+            price: 0,
+            user_id: user.id
+          }));
+
+          // Optimal: Parallel individual inserts with error handling for better observability
+          try {
+            setInventory(prev => [...prev, ...newItems]);
+
+            const insertPromises = newItems.map(async (item) => {
             try {
-              // Double check before adding to handle race conditions between effect triggers
-              if (!inventory.some(i => i.name.trim().toUpperCase() === name.toUpperCase())) {
-                await addInventoryItem({
-                  name: name.toUpperCase(),
-                  category: 'Agulhas',
-                  stock: 0,
-                  minStock: 5,
-                  unit: 'un',
-                  status: 'Esgotado',
-                  price: 0
-                });
+              const { error } = await withTimeout(
+                supabase.from('inventory').insert([toSnakeCase(item)]),
+                15000 // 15s per item
+              );
+              if (error) {
+                console.error(`SEED ERROR: Item ${item.name} failed:`, error.message);
+                throw error;
               }
-            } catch (err) {
-              console.error(`SEED: Failed to add item ${name}:`, err);
+            } catch (err: any) {
+              console.error(`SEED TIMEOUT/FAIL: Item ${item.name}:`, err.message || err);
+              throw err;
             }
+          });
+
+          const results = await Promise.allSettled(insertPromises);
+          const failures = results.filter(r => r.status === 'rejected');
+          
+          if (failures.length > 0) {
+            console.error(`SEED SUMMARY: ${failures.length} items failed to seed into inventory.`);
+          } else {
+            console.log('SEED SUCCESS: Inventory standardized.');
+          }
+          } catch (err) {
+            console.error('SEED FATAL ERROR: seeding inventory failed:', err);
           }
         }
 
@@ -1000,7 +1029,8 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   // Seed management categories if empty
   useEffect(() => {
     const seedManagementCategories = async () => {
-      if (!isSyncing && user && managementCategories.length === 0) {
+      if (!isSyncing && user && managementCategories.length === 0 && !categoriesSeededRef.current) {
+        categoriesSeededRef.current = true;
         const defaultCats: Omit<ManagementCategory, 'id'>[] = [
           { name: 'Aluguel', type: 'Saída', origin: 'Trabalho' },
           { name: 'Energia', type: 'Saída', origin: 'Trabalho' },
@@ -1014,13 +1044,53 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
           { name: 'Lazer', type: 'Saída', origin: 'Casa' }
         ];
         
-        console.log('SEED: Adding default management categories...');
-        for (const cat of defaultCats) {
-          try {
-            await addManagementCategory(cat);
-          } catch (err) {
-            console.error('SEED: Failed to add category:', cat.name, err);
+        console.log('SEED: Adding default management categories (Robust)...');
+        const categoriesWithUser = defaultCats.map(cat => ({
+          ...toSnakeCase(cat),
+          id: generateId(),
+          user_id: user.id
+        }));
+
+        try {
+          const insertPromises = categoriesWithUser.map(async (cat) => {
+            // Fix types for DB compatibility
+            const dbCat = { ...cat };
+            if (dbCat.type === 'Entrada') dbCat.type = 'Receita';
+            if (dbCat.type === 'Saída') dbCat.type = 'Despesa';
+
+            try {
+              const { error } = await withTimeout(
+                supabase.from('management_categories').insert([dbCat]),
+                10000 // 10s per category
+              );
+              if (error) {
+                console.error(`SEED ERROR: Category ${cat.name} failed:`, error.message);
+                throw error;
+              }
+            } catch (err: any) {
+              console.error(`SEED TIMEOUT/FAIL: Category ${cat.name}:`, err.message || err);
+              throw err;
+            }
+          });
+
+          const results = await Promise.allSettled(insertPromises);
+          const failures = results.filter(r => r.status === 'rejected');
+
+          if (failures.length > 0) {
+            console.error(`SEED SUMMARY: ${failures.length} categories failed to seed.`);
+          } else {
+            // Update local state - only if at least some succeeded
+            const localCats = categoriesWithUser.map(cat => ({
+              id: cat.id,
+              name: cat.name,
+              type: cat.type,
+              origin: cat.origin
+            } as ManagementCategory));
+            setManagementCategories(localCats);
+            console.log('SEED SUCCESS: Categories populated.');
           }
+        } catch (err: any) {
+          console.error('SEED FATAL ERROR: seeding categories failed:', err.message || err);
         }
       }
     };
@@ -1057,19 +1127,19 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       }
 
       const tables = [
-        { key: 'clients', table: 'clients', validColumns: ['id', 'name', 'email', 'phone', 'status', 'points', 'total_spent', 'birth_date', 'instagram', 'city', 'medical_notes', 'indicated_by', 'is_minor', 'notes', 'totalspent', 'lastvisit', 'level', 'created_at', 'last_visit', 'cpf'] },
-        { key: 'professionals', table: 'professionals', validColumns: ['id', 'name', 'role', 'specialty', 'rating', 'status', 'avatar', 'commission', 'assinatura', 'created_at'], mapping: { 'signature': 'assinatura' } },
-        { key: 'appointments', table: 'appointments', validColumns: ['id', 'clientid', 'clientname', 'professionalid', 'professionalname', 'service', 'date', 'time', 'status', 'value', 'duration', 'created_at', 'approval_status', 'client_id', 'client_name', 'professional_id', 'professional_name', 'cliente_id', 'data', 'hora', 'servico', 'valor', 'consent_sent', 'consent_signed', 'consent_data', 'total_value', 'deposit_percentage', 'totalvalue', 'depositpercentage', 'valor_total', 'porcentagem_sinal', 'user_id', 'payment_status', 'payment_url', 'payment_link_id', 'paymentstatus', 'paymenturl', 'paid_value', 'paidvalue'] },
-        { key: 'transactions', table: 'transactions', validColumns: ['id', 'description', 'value', 'type', 'category', 'date', 'status', 'method', 'appointment_id', 'appointmentid', 'agendamento_id', 'agendamentoid', 'user_id'] },
-        { key: 'loyaltyTransactions', table: 'loyalty_transactions', validColumns: ['id', 'client_id', 'clientid', 'points', 'type', 'description', 'date', 'created_at', 'user_id'] },
-        { key: 'inventory', table: 'inventory', validColumns: ['id', 'name', 'category', 'stock', 'minstock', 'unit', 'status', 'price', 'last_update', 'user_id'], mapping: { 'min_stock': 'minstock' } },
-        { key: 'products', table: 'products', validColumns: ['id', 'name', 'description', 'price', 'category', 'stock', 'image', 'user_id'] },
-        { key: 'drinks', table: 'drinks', validColumns: ['id', 'name', 'description', 'price', 'category', 'stock', 'image', 'user_id'] },
-        { key: 'rewards', table: 'rewards', validColumns: ['id', 'title', 'description', 'points_cost', 'points_required', 'pointscost', 'pointsrequired', 'active', 'user_id'] },
-        { key: 'consentForms', table: 'consent_forms', validColumns: ['id', 'appointment_id', 'client_id', 'type', 'content', 'signed_at', 'answers', 'signature', 'user_id'] },
-        { key: 'blockedTimes', table: 'blocked_times', validColumns: ['id', 'professional_id', 'professional_name', 'date', 'time', 'duration', 'reason', 'user_id'] },
-        { key: 'managementCategories', table: 'management_categories', validColumns: ['id', 'name', 'type', 'user_id'] },
-        { key: 'managementRules', table: 'management_rules', validColumns: ['id', 'name', 'category_id', 'amount', 'type', 'user_id'] }
+        { key: 'clients', table: 'clients', validColumns: ['id', 'name', 'email', 'phone', 'status', 'points', 'total_spent', 'birth_date', 'instagram', 'city', 'medical_notes', 'indicated_by', 'is_minor', 'notes', 'level', 'created_at', 'last_visit', 'cpf', 'user_id'] },
+        { key: 'professionals', table: 'professionals', validColumns: ['id', 'name', 'role', 'specialty', 'rating', 'status', 'avatar', 'commission', 'signature', 'created_at', 'user_id'] },
+        { key: 'appointments', table: 'appointments', validColumns: ['id', 'client_id', 'client_name', 'professional_id', 'professional_name', 'service', 'date', 'time', 'status', 'value', 'duration', 'created_at', 'approval_status', 'consent_sent', 'consent_signed', 'consent_data', 'total_value', 'deposit_percentage', 'user_id', 'payment_status', 'payment_url', 'payment_link_id', 'paid_value', 'rescheduled_at'] },
+        { key: 'transactions', table: 'transactions', validColumns: ['id', 'description', 'value', 'type', 'category', 'date', 'status', 'method', 'appointment_id', 'user_id', 'created_at'] },
+        { key: 'loyaltyTransactions', table: 'loyalty_transactions', validColumns: ['id', 'client_id', 'points', 'type', 'description', 'date', 'created_at', 'user_id'] },
+        { key: 'inventory', table: 'inventory', validColumns: ['id', 'name', 'category', 'stock', 'min_stock', 'unit', 'status', 'price', 'last_update', 'user_id', 'created_at'] },
+        { key: 'products', table: 'products', validColumns: ['id', 'name', 'description', 'price', 'category', 'stock', 'image', 'user_id', 'created_at'] },
+        { key: 'drinks', table: 'drinks', validColumns: ['id', 'name', 'description', 'price', 'category', 'stock', 'image', 'user_id', 'created_at'] },
+        { key: 'rewards', table: 'rewards', validColumns: ['id', 'title', 'description', 'points_cost', 'active', 'user_id', 'created_at'] },
+        { key: 'consentForms', table: 'consent_forms', validColumns: ['id', 'appointment_id', 'client_id', 'type', 'content', 'signed_at', 'answers', 'signature', 'user_id', 'created_at'] },
+        { key: 'blockedTimes', table: 'blocked_times', validColumns: ['id', 'professional_id', 'date', 'time', 'duration', 'reason', 'user_id', 'created_at'] },
+        { key: 'managementCategories', table: 'management_categories', validColumns: ['id', 'name', 'type', 'origin', 'user_id', 'color', 'icon', 'created_at'] },
+        { key: 'managementRules', table: 'management_rules', validColumns: ['id', 'name', 'category_id', 'amount', 'type', 'user_id', 'created_at'] }
       ];
 
       for (const { key, table, validColumns, mapping } of tables) {
@@ -1231,7 +1301,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       const payload: any = {};
       const validColumns = [
         'id', 'description', 'value', 'type', 'category', 'date', 'status', 'method',
-        'appointment_id', 'appointmentid', 'agendamento_id', 'agendamentoid', 'user_id'
+        'appointment_id', 'user_id', 'created_at'
       ];
       
       Object.keys(snakeTx).forEach(key => {
@@ -1289,7 +1359,19 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     setLoyaltyTransactions(prev => [...prev, newTrans]);
     
     try {
-      const { error } = await supabase.from('loyalty_transactions').insert([toSnakeCase(newTrans)]);
+      const snakeLT = toSnakeCase(newTrans);
+      const payload: any = {};
+      const validColumns = ['id', 'client_id', 'points', 'type', 'description', 'date', 'user_id', 'created_at'];
+
+      Object.keys(snakeLT).forEach(key => {
+        if (validColumns.includes(key)) {
+          payload[key] = snakeLT[key];
+        }
+      });
+
+      if (user?.id) payload.user_id = user.id;
+
+      const { error } = await supabase.from('loyalty_transactions').insert([payload]);
       if (error) {
         console.error('DB ERROR (loyalty_transactions):', error);
         setLoyaltyTransactions(prev => prev.filter(t => t.id !== newId));
@@ -1304,12 +1386,17 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     const newItem = { ...item, id: tempId };
     setInventory(prev => [...prev, newItem]);
     
-    const payload = toSnakeCase(newItem);
-    // Fix for database column naming inconsistency
-    if ('min_stock' in payload) {
-      payload.minstock = payload.min_stock;
-      delete payload.min_stock;
-    }
+    const snakeItem = toSnakeCase(newItem);
+    const payload: any = {};
+    const validColumns = ['id', 'name', 'category', 'stock', 'min_stock', 'unit', 'status', 'price', 'last_update', 'user_id', 'created_at'];
+
+    Object.keys(snakeItem).forEach(key => {
+      if (validColumns.includes(key)) {
+        payload[key] = snakeItem[key];
+      }
+    });
+
+    if (user?.id) payload.user_id = user.id;
 
     const { data, error } = await withTimeout(supabase.from('inventory').insert([payload]).select() as any) as any;
     
@@ -1327,12 +1414,15 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   const updateInventoryItem = useCallback(async (id: string, item: Partial<InventoryItem>) => {
     setInventory(prev => prev.map(i => i.id === id ? { ...i, ...item } : i));
     
-    const payload = toSnakeCase(item);
-    // Fix for database column naming inconsistency
-    if ('min_stock' in payload) {
-      payload.minstock = payload.min_stock;
-      delete payload.min_stock;
-    }
+    const snakeItem = toSnakeCase(item);
+    const payload: any = {};
+    const validColumns = ['id', 'name', 'category', 'stock', 'min_stock', 'unit', 'status', 'price', 'last_update', 'user_id'];
+
+    Object.keys(snakeItem).forEach(key => {
+      if (validColumns.includes(key)) {
+        payload[key] = snakeItem[key];
+      }
+    });
 
     const { error } = await supabase.from('inventory').update(payload).eq('id', id);
     if (error) {
@@ -1442,10 +1532,9 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       const snakeClient = toSnakeCase(client);
       const payload: any = {};
       const validColumns = [
-        'id', 'name', 'email', 'phone', 'status', 'points', 'totalspent', 
-        'lastvisit', 'level', 'birth_date', 'instagram', 'city', 
-        'medical_notes', 'indicated_by', 'is_minor', 'cpf', 'notes', 
-        'total_spent', 'last_visit'
+        'id', 'name', 'email', 'phone', 'status', 'points', 'total_spent', 
+        'birth_date', 'instagram', 'city', 'medical_notes', 'indicated_by', 
+        'is_minor', 'cpf', 'notes', 'last_visit', 'level', 'user_id'
       ];
       
       Object.keys(snakeClient).forEach(key => {
@@ -1453,33 +1542,6 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
           payload[key] = snakeClient[key];
         }
       });
-
-      // Map frontend keys to ALL possible backend keys to ensure persistence
-      if (client.indicatedBy !== undefined) {
-        payload.indicated_by = client.indicatedBy;
-      }
-
-      // Handle redundant columns explicitly to match detected DB schema
-      if (client.totalSpent !== undefined) {
-        payload.total_spent = client.totalSpent;
-        payload.totalspent = client.totalSpent;
-      }
-      if (client.lastVisit !== undefined) {
-        payload.last_visit = client.lastVisit;
-        payload.lastvisit = client.lastVisit;
-      }
-      if (client.birthDate !== undefined) {
-        payload.birth_date = client.birthDate;
-      }
-      if (client.medicalNotes !== undefined) {
-        payload.medical_notes = client.medicalNotes;
-      }
-      if (client.indicatedBy !== undefined) {
-        payload.indicated_by = client.indicatedBy;
-      }
-      if (client.isMinor !== undefined) {
-        payload.is_minor = client.isMinor;
-      }
 
       const { error } = await supabase.from('clients').update(payload).eq('id', id);
       
@@ -1507,7 +1569,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     const validColumns = [
       'id', 'name', 'email', 'phone', 'status', 'points', 'total_spent', 
       'birth_date', 'instagram', 'city', 'medical_notes', 'indicated_by', 
-      'is_minor', 'notes', 'totalspent', 'lastvisit', 'level', 'created_at', 'last_visit', 'cpf'
+      'is_minor', 'notes', 'last_visit', 'level', 'created_at', 'cpf', 'user_id'
     ];
     
     Object.keys(snakeClient).forEach(key => {
@@ -1516,20 +1578,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       }
     });
 
-    // Explicit mapping to ensure correct name
-    if (newClient.indicatedBy) {
-      payload.indicated_by = newClient.indicatedBy;
-    }
-
-    // Handle redundant columns explicitly
-    if (newClient.lastVisit) {
-      payload.lastvisit = newClient.lastVisit;
-      payload.last_visit = newClient.lastVisit;
-    }
-    if (newClient.totalSpent !== undefined) {
-      payload.totalspent = newClient.totalSpent;
-      payload.total_spent = newClient.totalSpent;
-    }
+    if (user?.id) payload.user_id = user.id;
     
     console.log('DB: Tentando inserir cliente no Supabase:', payload);
     
@@ -1637,15 +1686,15 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     
     const snakeProf = toSnakeCase(newProf);
     const payload: any = {};
-    const validColumns = ['id', 'name', 'role', 'specialty', 'rating', 'status', 'avatar', 'commission', 'assinatura', 'created_at'];
+    const validColumns = ['id', 'name', 'role', 'specialty', 'rating', 'status', 'avatar', 'commission', 'signature', 'pix_key', 'pix_name', 'city', 'infinity_pay_tag', 'created_at', 'user_id'];
     
     Object.keys(snakeProf).forEach(key => {
-      if (key === 'signature') {
-        payload['assinatura'] = snakeProf[key];
-      } else if (validColumns.includes(key)) {
+      if (validColumns.includes(key)) {
         payload[key] = snakeProf[key];
       }
     });
+
+    if (user?.id) payload.user_id = user.id;
 
     console.log('DB: Tentando inserir profissional no Supabase:', payload);
     
@@ -1653,15 +1702,6 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       const { data, error } = await withTimeout(supabase.from('professionals').insert([payload]).select() as any) as any;
       
       if (error) {
-        if (error.message.includes("Could not find the 'assinatura' column")) {
-          console.warn('DB WARNING: Coluna assinatura não encontrada, tentando salvar com signature');
-          const { assinatura, ...safePayload } = payload;
-          if (snakeProf['signature']) safePayload['signature'] = snakeProf['signature'];
-          const { data: retryData, error: retryError } = await withTimeout(supabase.from('professionals').insert([safePayload]).select() as any) as any;
-          if (retryError) throw new Error(`Erro ao salvar profissional (retry): ${retryError.message}`);
-          console.log('DB SUCCESS (retry): Profissional salvo com signature:', retryData);
-          return newId;
-        }
         console.error('DB ERROR (professionals):', error);
         setProfessionals(prev => prev.filter(p => p.id !== newId));
         throw new Error(`Erro ao salvar profissional: ${error.message}`);
@@ -1682,27 +1722,16 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     try {
       const snakeUpdate = toSnakeCase(professional);
       const payload: any = {};
-      const validColumns = ['id', 'name', 'role', 'specialty', 'rating', 'status', 'avatar', 'commission', 'assinatura', 'created_at'];
+      const validColumns = ['id', 'name', 'role', 'specialty', 'rating', 'status', 'avatar', 'commission', 'signature', 'pix_key', 'pix_name', 'city', 'infinite_pay_tag', 'created_at', 'user_id'];
       
       Object.keys(snakeUpdate).forEach(key => {
-        if (key === 'signature') {
-          payload['assinatura'] = snakeUpdate[key];
-        } else if (validColumns.includes(key)) {
+        if (validColumns.includes(key)) {
           payload[key] = snakeUpdate[key];
         }
       });
 
       const { error } = await supabase.from('professionals').update(payload).eq('id', id);
       if (error) {
-        if (error.message.includes("Could not find the 'assinatura' column")) {
-          console.warn('DB WARNING: Coluna assinatura não encontrada no update, tentando com signature');
-          const { assinatura, ...safePayload } = payload;
-          if (snakeUpdate['signature']) safePayload['signature'] = snakeUpdate['signature'];
-          const { error: retryError } = await supabase.from('professionals').update(safePayload).eq('id', id);
-          if (retryError) throw retryError;
-          console.log('DB SUCCESS (retry): Profissional atualizado com signature');
-          return;
-        }
         console.error('DB ERROR (professionals update):', error);
         throw error;
       }
@@ -1743,14 +1772,12 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     const snakeAppt = toSnakeCase(newAppt);
     const payload: any = { id: newId };
     const validColumns = [
-      'id', 'clientid', 'clientname', 'professionalid', 'professionalname', 
-      'service', 'date', 'time', 'status', 'value', 'duration', 'created_at', 
-      'approval_status', 'client_id', 'client_name', 'professional_id', 
-      'professional_name', 'cliente_id', 'data', 'hora', 'servico', 'valor', 
-      'consent_sent', 'consent_signed', 'consent_data', 'total_value', 'deposit_percentage',
-      'totalvalue', 'depositpercentage', 'valor_total', 'porcentagem_sinal', 'user_id',
-      'payment_status', 'payment_url', 'payment_link_id', 'paymentstatus', 'paymenturl', 'paid_value', 'paidvalue',
-      'rescheduledAt', 'rescheduledat', 'rescheduled_at'
+      'id', 'client_id', 'clientid', 'cliente_id', 'client_name', 'clientname',
+      'professional_id', 'professionalid', 'profissional_id', 'professional_name', 'professionalname',
+      'service', 'servico', 'date', 'data', 'time', 'hora', 'status', 'value', 'valor', 'duration', 'created_at', 
+      'approval_status', 'consent_sent', 'consent_signed', 'consent_data', 
+      'total_value', 'totalvalue', 'valor_total', 'deposit_percentage', 'depositpercentage', 'porcentagem_sinal', 
+      'user_id', 'payment_status', 'payment_url', 'payment_link_id', 'paid_value', 'rescheduled_at'
     ];
 
     Object.keys(snakeAppt).forEach(key => {
@@ -1759,66 +1786,27 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       }
     });
 
+    // Ensure mapping to the column we KNOW exists or is preferred
+    if (payload.client_id) {
+      delete payload.clientid;
+      delete payload.cliente_id;
+    }
+    if (payload.professional_id) {
+      delete payload.professionalid;
+      delete payload.profissional_id;
+    }
+    if (payload.total_value) {
+      delete payload.totalvalue;
+      delete payload.valor_total;
+    }
+    if (payload.deposit_percentage) {
+      // Prefer the one that currently causes the error if missing, 
+      // but we will tell user to run SQL.
+    }
+    
     // Automatically add user_id if available
     if (user?.id && !payload.user_id) {
       payload.user_id = user.id;
-    }
-    
-    // Map frontend keys to ALL possible backend keys to ensure persistence across redundant columns
-    if (newAppt.clientId) {
-      payload.clientid = newAppt.clientId;
-      payload.client_id = newAppt.clientId;
-      payload.cliente_id = newAppt.clientId;
-    }
-    if (newAppt.clientName) {
-      payload.clientname = newAppt.clientName;
-      payload.client_name = newAppt.clientName;
-    }
-    if (newAppt.professionalId) {
-      payload.professionalid = newAppt.professionalId;
-      payload.professional_id = newAppt.professionalId;
-    }
-    if (newAppt.professionalName) {
-      payload.professionalname = newAppt.professionalName;
-      payload.professional_name = newAppt.professionalName;
-    }
-    if (newAppt.service) {
-      payload.service = newAppt.service;
-      payload.servico = newAppt.service;
-    }
-    if (newAppt.date) {
-      payload.date = newAppt.date;
-      payload.data = newAppt.date;
-    }
-    if (newAppt.time) {
-      payload.time = newAppt.time;
-      payload.hora = newAppt.time;
-    }
-    if (newAppt.value !== undefined) {
-      payload.value = newAppt.value;
-      payload.valor = newAppt.value;
-    }
-    if (newAppt.totalValue !== undefined) {
-      payload.total_value = newAppt.totalValue;
-      payload.totalvalue = newAppt.totalValue;
-      payload.valor_total = newAppt.totalValue;
-    }
-    if (newAppt.depositPercentage !== undefined) {
-      payload.deposit_percentage = newAppt.depositPercentage;
-      payload.depositpercentage = newAppt.depositPercentage;
-      payload.porcentagem_sinal = newAppt.depositPercentage;
-    }
-    if (newAppt.approvalStatus) {
-      payload.approval_status = newAppt.approvalStatus;
-    }
-    if (newAppt.paymentStatus) {
-      payload.payment_status = newAppt.paymentStatus;
-    }
-    if (newAppt.paymentLinkId) {
-      payload.payment_link_id = newAppt.paymentLinkId;
-    }
-    if (newAppt.consentData) {
-      payload.consent_data = newAppt.consentData;
     }
     
     console.log('DB: Tentando inserir agendamento no Supabase com mapeamento extra:', payload);
@@ -1829,7 +1817,18 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       if (error) {
         console.error('DB ERROR (appointments):', error);
         setAppointments(prev => prev.filter(a => a.id !== newAppt.id));
-        throw new Error(`Erro ao salvar agendamento: ${error.message}`);
+        
+        // Detailed error for debugging
+        const errInfo = {
+          error: error.message,
+          operationType: 'create',
+          path: 'appointments',
+          authInfo: {
+            userId: user?.id,
+            email: user?.email
+          }
+        };
+        throw new Error(JSON.stringify(errInfo));
       }
       
       console.log('DB SUCCESS: Agendamento salvo no Supabase:', data);
@@ -1929,13 +1928,12 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       const snakeUpdate = toSnakeCase(appointment);
       const payload: any = {};
       const validColumns = [
-        'id', 'clientid', 'clientname', 'professionalid', 'professionalname', 
-        'service', 'date', 'time', 'status', 'value', 'duration', 'created_at', 
-        'approval_status', 'client_id', 'client_name', 'professional_id', 
-        'professional_name', 'cliente_id', 'data', 'hora', 'servico', 'valor', 
-        'consent_sent', 'consent_signed', 'consent_data', 'payment_status', 'payment_link_id',
-        'total_value', 'deposit_percentage', 'totalvalue', 'depositpercentage', 'valor_total', 'porcentagem_sinal', 'user_id',
-        'payment_url', 'paymentstatus', 'paymenturl', 'paid_value', 'paidvalue'
+        'id', 'client_id', 'clientid', 'cliente_id', 'client_name', 'clientname',
+        'professional_id', 'professionalid', 'profissional_id', 'professional_name', 'professionalname',
+        'service', 'servico', 'date', 'data', 'time', 'hora', 'status', 'value', 'valor', 'duration', 'created_at', 
+        'approval_status', 'consent_sent', 'consent_signed', 'consent_data', 'payment_status', 'payment_link_id',
+        'total_value', 'totalvalue', 'valor_total', 'deposit_percentage', 'depositpercentage', 'porcentagem_sinal', 
+        'user_id', 'payment_url', 'paid_value', 'rescheduled_at'
       ];
 
       Object.keys(snakeUpdate).forEach(key => {
@@ -1944,54 +1942,26 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
         }
       });
 
+      // Ensure mapping to preferred columns and avoid multiples
+      if (payload.client_id) {
+        delete payload.clientid;
+        delete payload.cliente_id;
+      }
+      if (payload.professional_id) {
+        delete payload.professionalid;
+        delete payload.profissional_id;
+      }
+      if (payload.total_value) {
+        delete payload.totalvalue;
+        delete payload.valor_total;
+      }
+      if (payload.deposit_percentage) {
+        // delete payload.deposit_percentage; // Keep the one the app uses
+      }
+
       // Automatically add user_id if available
       if (user?.id && !payload.user_id) {
         payload.user_id = user.id;
-      }
-      
-      // Map frontend keys to ALL possible backend keys to ensure persistence across redundant columns
-      if (appointment.clientId) {
-        payload.clientid = appointment.clientId;
-        payload.client_id = appointment.clientId;
-        payload.cliente_id = appointment.clientId;
-      }
-      if (appointment.clientName) {
-        payload.clientname = appointment.clientName;
-        payload.client_name = appointment.clientName;
-      }
-      if (appointment.professionalId) {
-        payload.professionalid = appointment.professionalId;
-        payload.professional_id = appointment.professionalId;
-      }
-      if (appointment.professionalName) {
-        payload.professionalname = appointment.professionalName;
-        payload.professional_name = appointment.professionalName;
-      }
-      if (appointment.service) {
-        payload.service = appointment.service;
-        payload.servico = appointment.service;
-      }
-      if (appointment.date) {
-        payload.date = appointment.date;
-        payload.data = appointment.date;
-      }
-      if (appointment.time) {
-        payload.time = appointment.time;
-        payload.hora = appointment.time;
-      }
-      if (appointment.value !== undefined) {
-        payload.value = appointment.value;
-        payload.valor = appointment.value;
-      }
-      if (appointment.totalValue !== undefined) {
-        payload.total_value = appointment.totalValue;
-        payload.totalvalue = appointment.totalValue;
-        payload.valor_total = appointment.totalValue;
-      }
-      if (appointment.depositPercentage !== undefined) {
-        payload.deposit_percentage = appointment.depositPercentage;
-        payload.depositpercentage = appointment.depositPercentage;
-        payload.porcentagem_sinal = appointment.depositPercentage;
       }
       if (appointment.approvalStatus) {
         payload.approval_status = appointment.approvalStatus;
@@ -2010,7 +1980,18 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
 
       if (error) {
         console.error('DB ERROR (appointments update):', error);
-        throw error;
+        
+        // Detailed error for debugging
+        const errInfo = {
+          error: error.message,
+          operationType: 'update',
+          path: `appointments/${id}`,
+          authInfo: {
+            userId: user?.id,
+            email: user?.email
+          }
+        };
+        throw new Error(JSON.stringify(errInfo));
       }
       
       if (!data || data.length === 0) {
@@ -2759,7 +2740,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       const payload: any = {};
       const validColumns = [
         'id', 'description', 'value', 'type', 'category', 'date', 'status', 'method',
-        'appointment_id', 'appointmentid', 'agendamento_id', 'agendamentoid', 'user_id'
+        'appointment_id', 'user_id', 'created_at'
       ];
       
       Object.keys(snakeTx).forEach(key => {
@@ -2955,6 +2936,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
 
     const payload: any = {};
     const mapping: Record<string, string> = {
+      infinitePayTag: 'infinite_pay_tag',
       studioName: 'studioname',
       defaultCommission: 'defaultcommission',
       customCommission: 'customcommission',

@@ -263,7 +263,7 @@ export default function ConsentForm() {
             // Manually sanitize to match DataContext logic
             const sanitizedAppt: Appointment = {
               id: String(data.id || ''),
-              clientId: String(data.clientId || data.clientid || data.client_id || data.clienteId || data.cliente_id || ''),
+              clientId: String(data.clientId || data.clientid || data.client_id || ''),
               clientName: String(data.clientName || data.clientname || data.client_name || data.nomeCliente || data.cliente || 'Cliente'),
               professionalId: String(data.professionalId || data.professionalid || data.professional_id || data.profissionalId || data.profissional_id || ''),
               professionalName: String(data.professionalName || data.professionalname || data.professional_name || data.nomeProfissional || data.profissional || 'Profissional'),

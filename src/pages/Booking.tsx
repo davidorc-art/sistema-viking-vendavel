@@ -731,7 +731,28 @@ export default function Booking() {
       setIsGeneratingPayment(true);
       
       try {
-        console.log('BOOKING: Gerando link de pagamento na API...');
+        console.log('BOOKING: Verificando método de pagamento (InfinitePay vs MP)...');
+        
+        // Priority: Professional Tag -> Studio Tag -> Mercado Pago API
+        const infinitePayTag = professional?.infinitePayTag || settings.infinitePayTag;
+        
+        if (infinitePayTag) {
+          console.log('BOOKING: Usando InfinitePay TAG:', infinitePayTag);
+          // Format with value: https://pay.infinitepay.io/TAG/VALOR
+          // InfinitePay expects value with commas for decimals or cents depending on version, 
+          // but common link format is /tag/value_in_cents or /tag/value_fixed
+          // Most robust for common tags: https://pay.infinitepay.io/TAG/VALUE
+          const formattedValue = valueToPay.toFixed(2).replace('.', ',');
+          const infiniteLink = `https://pay.infinitepay.io/${infinitePayTag}/${formattedValue}`;
+          
+          setGeneratedPaymentUrl(infiniteLink);
+          setPaymentReady(true);
+          setIsGeneratingPayment(false);
+          setIsSubmitting(false);
+          return;
+        }
+
+        console.log('BOOKING: Gerando link de pagamento na API (Mercado Pago)...');
         const response = await fetch('/api/payments/create-link', {
           method: 'POST',
           headers: {
@@ -877,7 +898,8 @@ export default function Booking() {
                     console.log('PAYMENT: Redirecting to payment link in new tab:', generatedPaymentUrl);
                     setSuccess(true);
                     setTimeout(() => {
-                      navigate(`/booking-success?free=false&service=${encodeURIComponent(formData.service || service || '')}`);
+                      const method = (professional?.infinitePayTag || settings.infinitePayTag) ? 'infinitePay' : 'mp';
+                    navigate(`/booking-success?free=false&method=${method}&service=${encodeURIComponent(formData.service || service || '')}`);
                     }, 100);
                   }}
                   className="w-full py-6 bg-primary text-black rounded-[32px] font-black text-xl uppercase tracking-[0.2em] shadow-[0_20px_50px_rgba(var(--color-primary),0.3)] hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-4 cursor-pointer"

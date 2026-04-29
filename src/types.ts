@@ -46,6 +46,7 @@ export interface Professional {
   pixKey?: string;
   pixName?: string;
   city?: string;
+  infinitePayTag?: string;
 }
 
 export interface Appointment {
@@ -207,6 +208,7 @@ export interface AppSettings {
   city?: string;
   mpAccessToken?: string;
   mpPublicKey?: string;
+  infinitePayTag?: string;
   services?: {
     id: string;
     name: string;

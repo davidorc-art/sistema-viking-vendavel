@@ -151,7 +151,7 @@ export class SmartRestoreService {
     // Map Appointments
     if (collections.appointments) {
       const sample = collections.appointments[0] || {};
-      mapping.appointments = this.mapFields(sample, ['id', 'clientId', 'cliente_id', 'professionalId', 'profissional_id', 'service', 'servico', 'date', 'data', 'time', 'hora', 'status', 'value', 'valor']);
+      mapping.appointments = this.mapFields(sample, ['id', 'clientId', 'professionalId', 'service', 'date', 'time', 'status', 'value']);
       transformedData.appointments = collections.appointments.slice(0, 5).map((item: any) => this.applyMapping(item, mapping.appointments));
     }
     
@@ -236,12 +236,12 @@ export class SmartRestoreService {
     transformedData.appointments = transformedData.appointments.map((a: any) => ({
       ...a,
       id: a.id || Math.random().toString(36).substr(2, 9),
-      clientId: a.clientId || a.cliente_id || '',
-      clientName: a.clientName || a.cliente_nome || 'Cliente',
-      professionalId: a.professionalId || a.profissional_id || '',
-      professionalName: a.professionalName || a.profissional_nome || 'Profissional',
-      service: a.service || a.servico || 'Serviço',
-      date: a.date || a.data || new Date().toISOString().split('T')[0],
+      clientId: a.clientId || '',
+      clientName: a.clientName || 'Cliente',
+      professionalId: a.professionalId || '',
+      professionalName: a.professionalName || 'Profissional',
+      service: a.service || 'Serviço',
+      date: a.date || new Date().toISOString().split('T')[0],
       time: String(a.time || a.hora || '00:00').substring(0, 5),
       status: ['Confirmado', 'Pendente', 'Finalizado', 'Cancelado', 'Falta'].includes(a.status) ? a.status : 'Confirmado',
       value: Number(a.value || a.valor || 0),

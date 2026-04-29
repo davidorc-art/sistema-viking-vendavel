@@ -40,7 +40,7 @@ import { AppSettings } from '../types';
 import { useNavigate } from 'react-router-dom';
 
 // --- Types ---
-type SettingsTab = 'estudio' | 'assinatura' | 'profissionais' | 'servicos' | 'financeiro' | 'mercadoPago' | 'fidelidade' | 'agenda' | 'estoque' | 'loja' | 'bar' | 'seguranca' | 'backup' | 'whatsapp';
+type SettingsTab = 'estudio' | 'assinatura' | 'profissionais' | 'servicos' | 'financeiro' | 'infinitePay' | 'fidelidade' | 'agenda' | 'estoque' | 'loja' | 'bar' | 'seguranca' | 'backup' | 'whatsapp';
 
 // --- Sub-components ---
 
@@ -347,7 +347,7 @@ export default function Configuracoes() {
     { id: 'profissionais', label: 'Profissionais', icon: <Users size={18} /> },
     { id: 'servicos', label: 'Serviços', icon: <Star size={18} /> },
     { id: 'financeiro', label: 'Financeiro', icon: <DollarSign size={18} /> },
-    { id: 'mercadoPago', label: 'Mercado Pago', icon: <CreditCard size={18} /> },
+    { id: 'infinitePay', label: 'InfinitePay', icon: <CreditCard size={18} /> },
     { id: 'fidelidade', label: 'Fidelidade', icon: <Star size={18} /> },
     { id: 'agenda', label: 'Agenda', icon: <Calendar size={18} /> },
     { id: 'estoque', label: 'Estoque', icon: <Package size={18} /> },
@@ -360,78 +360,78 @@ export default function Configuracoes() {
   return (
     <div className="space-y-8 pb-20">
       {/* Header */}
-      <div className="space-y-6">
+      <div className="space-y-4 lg:space-y-6 px-2 lg:px-0">
         <div className="flex items-center gap-4">
-          <div className="p-3 bg-primary/20 text-primary rounded-2xl">
-            <Settings size={32} />
+          <div className="p-2 lg:p-3 bg-primary/20 text-primary rounded-xl lg:rounded-2xl shrink-0">
+            <Settings size={24} className="lg:w-8 lg:h-8" />
           </div>
-          <div className="space-y-1">
-            <h1 className="text-5xl font-bold tracking-tighter text-primary uppercase">Configurações</h1>
-            <p className="text-gray-500 text-sm font-medium uppercase tracking-widest">Personalize o sistema para o seu estúdio</p>
+          <div className="space-y-0.5 lg:space-y-1">
+            <h1 className="text-3xl lg:text-5xl font-bold tracking-tighter text-primary uppercase">Configurações</h1>
+            <p className="text-gray-500 text-[10px] lg:text-sm font-medium uppercase tracking-widest leading-none">Personalize seu estúdio</p>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="glass-card bg-card border-white/5 p-6 rounded-[2rem] flex items-center justify-between">
-            <div className="space-y-1">
-              <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Status do Sistema</p>
-              <div className="flex items-center gap-2 text-success">
-                <Activity size={18} />
-                <span className="text-xl font-bold">Operacional</span>
+        <div className="grid grid-cols-2 gap-3 lg:gap-4">
+          <div className="glass-card bg-card border-white/5 p-4 lg:p-6 rounded-[1.5rem] lg:rounded-[2rem] flex items-center justify-between">
+            <div className="space-y-0.5">
+              <p className="text-[8px] lg:text-[10px] font-bold text-gray-500 uppercase tracking-widest">Status</p>
+              <div className="flex items-center gap-1.5 text-success">
+                <Activity size={14} className="lg:w-[18px] lg:h-[18px]" />
+                <span className="text-sm lg:text-xl font-bold">Ativo</span>
               </div>
             </div>
           </div>
-          <div className="glass-card bg-card border-white/5 p-6 rounded-[2rem] flex items-center justify-between">
-            <div className="space-y-1">
-              <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Conexão</p>
+          <div className="glass-card bg-card border-white/5 p-4 lg:p-6 rounded-[1.5rem] lg:rounded-[2rem] flex items-center justify-between">
+            <div className="space-y-0.5">
+              <p className="text-[8px] lg:text-[10px] font-bold text-gray-500 uppercase tracking-widest">Conexão</p>
               <div className={cn(
-                "flex items-center gap-2 transition-colors",
+                "flex items-center gap-1.5 transition-colors",
                 isDataSyncing ? "text-orange-500" : "text-blue-500"
               )}>
-                <Wifi size={18} className={isDataSyncing ? "animate-pulse" : ""} />
-                <span className="text-xl font-bold">{isDataSyncing ? "Sincronizando..." : "Conectado"}</span>
+                <Wifi size={14} className={cn("lg:w-[18px] lg:h-[18px]", isDataSyncing ? "animate-pulse" : "")} />
+                <span className="text-sm lg:text-xl font-bold">{isDataSyncing ? "Sync..." : "ON"}</span>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="space-y-3">
+        <div className="fixed bottom-24 left-4 right-4 z-[60] lg:relative lg:bottom-0 lg:left-0 lg:right-0 lg:z-0">
           <button 
             onClick={handleSave}
             disabled={isSaving}
             className={cn(
-              "w-full py-4 rounded-2xl text-white font-bold text-lg transition-all flex items-center justify-center gap-3 disabled:opacity-50",
-              saveFeedback ? "bg-success shadow-[0_0_30px_rgba(34,197,94,0.3)]" : "bg-primary shadow-[0_0_30px_rgba(139,92,246,0.3)] hover:scale-[1.01]"
+              "w-full py-4 rounded-2xl text-white font-bold text-lg transition-all flex items-center justify-center gap-3 disabled:opacity-50 shadow-2xl",
+              saveFeedback ? "bg-success shadow-success/20" : "bg-primary shadow-primary/20 hover:scale-[1.01]"
             )}
           >
             {isSaving ? <Loader2 className="animate-spin" size={20} /> : (
-              saveFeedback ? <><Check size={20} /> Alterações Salvas!</> : <><Save size={20} /> Salvar Alterações</>
+              saveFeedback ? <><Check size={20} /> Salvo!</> : <><Save size={20} /> Salvar Tudo</>
             )}
           </button>
         </div>
       </div>
 
       {/* Navigation Tabs */}
-      <div className="glass-card bg-card border-white/5 rounded-[2.5rem] p-4 overflow-x-auto custom-scrollbar">
-        <div className="flex flex-nowrap lg:flex-wrap gap-2 min-w-max lg:min-w-0">
+      <div className="glass-card bg-card border-white/5 rounded-2xl lg:rounded-[2.5rem] p-2 lg:p-4 overflow-x-auto custom-scrollbar sticky top-4 z-50 backdrop-blur-md mx-2 lg:mx-0">
+        <div className="flex flex-nowrap lg:flex-wrap gap-1.5 lg:gap-2">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={cn(
-                "flex flex-col items-center justify-center gap-2 p-4 rounded-2xl transition-all min-w-[100px] lg:min-w-0 lg:flex-1",
+                "flex flex-row lg:flex-col items-center justify-center gap-2 p-3 lg:p-4 rounded-xl lg:rounded-2xl transition-all min-w-[110px] lg:min-w-0 lg:flex-1 shrink-0",
                 activeTab === tab.id ? "bg-primary text-white shadow-lg shadow-primary/20" : "text-gray-500 hover:bg-white/5 hover:text-gray-300"
               )}
             >
-              {tab.icon}
-              <span className="text-[10px] font-bold uppercase tracking-widest">{tab.label}</span>
+              <div className="shrink-0">{tab.icon}</div>
+              <span className="text-[9px] lg:text-[10px] font-bold uppercase tracking-widest whitespace-nowrap">{tab.label}</span>
             </button>
           ))}
         </div>
       </div>
 
       {/* Settings Content */}
-      <div className="space-y-8">
+      <div className="space-y-6 lg:space-y-8 px-2 lg:px-0">
         {activeTab === 'estudio' && (
           <SettingsSection title="Dados do Estúdio" description="Informações básicas do seu negócio">
             <InputField label="Nome do Estúdio" value={localSettings.studioName} onChange={(v) => updateSetting('studioName', v)} />
@@ -741,10 +741,31 @@ export default function Configuracoes() {
           </SettingsSection>
         )}
 
-        {activeTab === 'mercadoPago' && (
-          <SettingsSection title="Configurações Mercado Pago" description="Configure as credenciais para receber pagamentos diretamente no seu Mercado Pago">
-            <InputField label="Access Token" value={localSettings.mpAccessToken} onChange={(v) => updateSetting('mpAccessToken', v)} />
-            <InputField label="Public Key" value={localSettings.mpPublicKey} onChange={(v) => updateSetting('mpPublicKey', v)} />
+        {activeTab === 'infinitePay' && (
+          <SettingsSection title="Configurações InfinitePay" description="Integre sua conta InfinitePay para agendamentos rápidos">
+            <div className="space-y-6">
+              <div className="p-6 bg-primary/10 border border-primary/20 rounded-[2rem] flex items-center gap-4">
+                <div className="p-3 bg-primary text-white rounded-xl">
+                  <Activity size={24} />
+                </div>
+                <div>
+                  <h4 className="font-bold">Pagamento Automático via TAG</h4>
+                  <p className="text-xs text-gray-400">Ao inserir sua TAG, o link de agendamento incluirá automaticamente a opção de pagamento via InfinitePay.</p>
+                </div>
+              </div>
+
+              <InputField 
+                label="Sua TAG InfinitePay" 
+                placeholder="Ex: vikingtattoo" 
+                value={localSettings.infinitePayTag} 
+                onChange={(v) => updateSetting('infinitePayTag', v)} 
+              />
+              
+              <div className="p-4 bg-white/5 rounded-2xl">
+                <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Onde encontrar minha TAG?</p>
+                <p className="text-xs text-gray-400">Entre no seu App InfinitePay, vá em Perfil ou Configurações de Link e procure pela sua TAG personalizada.</p>
+              </div>
+            </div>
           </SettingsSection>
         )}
 
