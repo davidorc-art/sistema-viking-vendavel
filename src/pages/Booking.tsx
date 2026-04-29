@@ -833,7 +833,9 @@ export default function Booking() {
                 <User size={48} className="text-white/20" />
               </div>
               <h2 className="text-2xl font-serif italic text-primary">Profissional não encontrado</h2>
-              <p className="text-xs text-gray-500 uppercase tracking-widest leading-relaxed">O elo com este profissional parece ter se quebrado nos salões de Valhalla.</p>
+              <p className="text-xs text-gray-500 uppercase tracking-widest leading-relaxed">
+                 O elo com este profissional parece ter se quebrado nos salões de Valhalla.
+              </p>
               <button 
                 onClick={() => navigate('/')}
                 className="w-full py-4 bg-primary text-black rounded-2xl font-black uppercase tracking-widest text-xs hover:scale-105 transition-all"

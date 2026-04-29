@@ -610,13 +610,11 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
                 if (table === 'clients' && bookingClientId) {
                   query = query.eq('id', bookingClientId);
                 } else if (table === 'appointments') {
-                  const lastDay = new Date();
-                  lastDay.setDate(lastDay.getDate() - 1);
-                  query = query.gte('date', lastDay.toISOString().split('T')[0]).order('date', { ascending: true });
+                  return fetch('/api/public/booking-data').then(r => r.json()).then(d => ({ data: d.appointments, error: null })).catch(() => ({ data: [], error: null }));
                 } else if (table === 'blocked_times') {
-                  const lastDay = new Date();
-                  lastDay.setDate(lastDay.getDate() - 1);
-                  query = query.gte('date', lastDay.toISOString().split('T')[0]);
+                  return fetch('/api/public/booking-data').then(r => r.json()).then(d => ({ data: d.blocked_times, error: null })).catch(() => ({ data: [], error: null }));
+                } else if (table === 'professionals') {
+                  return fetch('/api/public/booking-data').then(r => r.json()).then(d => ({ data: d.professionals, error: null })).catch(() => ({ data: [], error: null }));
                 } else if (!['professionals'].includes(table) && !(table === 'clients' && bookingClientId) && table !== 'appointments' && table !== 'blocked_times') {
                   return Promise.resolve({ data: [], error: null });
                 }
@@ -720,7 +718,16 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
 
       // Settings é um caso especial (.single())
       try {
-        const { data: settingsData } = await withTimeout(supabase.from('settings').select('*').single() as any) as any;
+        let settingsData = null;
+        if (!user && (isBookingRoute || isConsentRoute || isRescheduleRoute)) {
+          const res = await fetch('/api/public/booking-data');
+          const proxyData = await res.json();
+          settingsData = proxyData.settings;
+        } else {
+          const result = await withTimeout(supabase.from('settings').select('*').single() as any) as any;
+          settingsData = result.data;
+        }
+        
         if (settingsData) {
            setSettings(prev => {
              const fetched = sanitize.settings(settingsData);

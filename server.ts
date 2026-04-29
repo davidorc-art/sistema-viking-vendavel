@@ -192,6 +192,35 @@ async function startServer() {
       res.status(500).json({ error: error.message });
     }
   });
+  app.get('/api/public/booking-data', async (req, res) => {
+    try {
+      const admin = getSupabaseAdmin();
+      if (!admin) return res.status(500).json({ error: 'DB not configured' });
+      
+      const { data: professionals } = await admin.from('professionals').select('*');
+      const { data: blocked_times } = await admin.from('blocked_times').select('*');
+      
+      const lastDay = new Date();
+      lastDay.setDate(lastDay.getDate() - 1);
+      const dateString = lastDay.toISOString().split('T')[0];
+      
+      const { data: appointments } = await admin.from('appointments')
+        .select('id, professional_id, date, time, duration, client_id, status')
+        .gte('date', dateString);
+        
+      const { data: settings } = await admin.from('settings').select('*').limit(1);
+      
+      res.json({
+        professionals: professionals || [],
+        blocked_times: blocked_times || [],
+        appointments: appointments || [],
+        settings: settings?.[0] || null
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   app.get('/api/debug/infinitepay', async (req, res) => {
     const apiKey = (process.env.INFINITEPAY_API_KEY || '').trim();
     const tag = (process.env.INFINITEPAY_TAG || '').trim().replace(/^[@$]/, '');
