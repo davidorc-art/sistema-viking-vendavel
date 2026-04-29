@@ -221,6 +221,66 @@ async function startServer() {
     }
   });
 
+  app.post('/api/public/clients', async (req, res) => {
+    try {
+      const admin = getSupabaseAdmin();
+      if (!admin) return res.status(500).json({ error: 'DB not configured' });
+      
+      const payload = req.body;
+      const { data, error } = await admin.from('clients').insert([payload]);
+      
+      if (error) throw error;
+      res.json({ success: true, data });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.put('/api/public/clients/:id', async (req, res) => {
+    try {
+      const admin = getSupabaseAdmin();
+      if (!admin) return res.status(500).json({ error: 'DB not configured' });
+      
+      const payload = req.body;
+      const { data, error } = await admin.from('clients').update(payload).eq('id', req.params.id);
+      
+      if (error) throw error;
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post('/api/public/appointments', async (req, res) => {
+    try {
+      const admin = getSupabaseAdmin();
+      if (!admin) return res.status(500).json({ error: 'DB not configured' });
+      
+      const payload = req.body;
+      const { data, error } = await admin.from('appointments').insert([payload]);
+      
+      if (error) throw error;
+      res.json({ success: true, data });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.put('/api/public/appointments/:id', async (req, res) => {
+    try {
+      const admin = getSupabaseAdmin();
+      if (!admin) return res.status(500).json({ error: 'DB not configured' });
+      
+      const payload = req.body;
+      const { data, error } = await admin.from('appointments').update(payload).eq('id', req.params.id);
+      
+      if (error) throw error;
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   app.get('/api/debug/infinitepay', async (req, res) => {
     const apiKey = (process.env.INFINITEPAY_API_KEY || '').trim();
     const tag = (process.env.INFINITEPAY_TAG || '').trim().replace(/^[@$]/, '');

@@ -1558,7 +1558,19 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
         }
       });
 
-      const { error } = await supabase.from('clients').update(payload).eq('id', id);
+      let error;
+      if (!user && (isBookingRoute || isConsentRoute || isRescheduleRoute)) {
+        const res = await fetch(`/api/public/clients/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const result = await res.json();
+        if (!res.ok) throw new Error(result.error);
+      } else {
+        const result = await supabase.from('clients').update(payload).eq('id', id);
+        error = result.error;
+      }
       
       if (error) {
         console.error('DB ERROR (clients update):', error);
@@ -1598,7 +1610,21 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     console.log('DB: Tentando inserir cliente no Supabase:', payload);
     
     try {
-      const { data, error } = await withTimeout(supabase.from('clients').insert([payload]).select() as any) as any;
+      let data, error;
+      if (!user && (isBookingRoute || isConsentRoute || isRescheduleRoute)) {
+        const res = await fetch('/api/public/clients', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const result = await res.json();
+        if (!res.ok) throw new Error(result.error);
+        data = result.data;
+      } else {
+        const result = await withTimeout(supabase.from('clients').insert([payload]).select() as any) as any;
+        data = result.data;
+        error = result.error;
+      }
       
       if (error) {
         console.error('DB ERROR (clients):', error);
@@ -1827,7 +1853,21 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     console.log('DB: Tentando inserir agendamento no Supabase com mapeamento extra:', payload);
     
     try {
-      const { data, error } = await withTimeout(supabase.from('appointments').insert([payload]).select() as any) as any;
+      let data, error;
+      if (!user && (isBookingRoute || isConsentRoute || isRescheduleRoute)) {
+        const res = await fetch('/api/public/appointments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const result = await res.json();
+        if (!res.ok) throw new Error(result.error);
+        data = result.data;
+      } else {
+        const result = await withTimeout(supabase.from('appointments').insert([payload]).select() as any) as any;
+        data = result.data;
+        error = result.error;
+      }
       
       if (error) {
         console.error('DB ERROR (appointments):', error);
@@ -1987,11 +2027,25 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       
       console.log('DB: Payload convertido para snake_case com mapeamento extra:', payload);
       
-      const { data, error } = await supabase
-        .from('appointments')
-        .update(payload)
-        .eq('id', id)
-        .select();
+      let data, error;
+      if (!user && (isBookingRoute || isConsentRoute || isRescheduleRoute)) {
+        const res = await fetch(`/api/public/appointments/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const result = await res.json();
+        if (!res.ok) throw new Error(result.error);
+        data = [{ id }]; // Mock success data for length check
+      } else {
+        const result = await supabase
+          .from('appointments')
+          .update(payload)
+          .eq('id', id)
+          .select();
+        data = result.data;
+        error = result.error;
+      }
 
       if (error) {
         console.error('DB ERROR (appointments update):', error);
