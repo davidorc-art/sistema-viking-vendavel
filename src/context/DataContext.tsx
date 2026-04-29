@@ -274,7 +274,11 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       status: (['Disponível', 'Em Atendimento', 'Ausente'].includes(p.status) ? p.status : 'Disponível') as any,
       avatar: String(p.avatar || ''),
       commission: Number(p.commission || 0),
-      signature: String(p.signature || p.assinatura || '')
+      signature: String(p.signature || p.assinatura || ''),
+      pixKey: p.pixKey || p.pix_key || p.pixkey || '',
+      pixName: p.pixName || p.pix_name || p.pixname || '',
+      city: p.city || '',
+      infinitePayTag: p.infinitePayTag || p.infinite_pay_tag || p.infinitepay_tag || p.infinityPayTag || p.infinity_pay_tag || p.infinitypay_tag || ''
     })),
     appointments: (data: any[]): Appointment[] => (Array.isArray(data) ? data : []).map(a => {
       const rawValue = Number(a.value || a.valor || 0);

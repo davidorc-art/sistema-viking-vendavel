@@ -6,7 +6,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 export default function BookingSuccess() {
   const [searchParams] = useSearchParams();
   const isFree = searchParams.get('free') === 'true';
-  const appointmentId = searchParams.get('appointmentId');
+  const appointmentId = searchParams.get('appointmentId') || searchParams.get('apptId');
   const serviceName = searchParams.get('service') || '';
   
   const method = searchParams.get('method') || 'mp';

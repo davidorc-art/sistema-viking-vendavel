@@ -42,7 +42,7 @@ export default function Booking() {
   const clientIdParam = searchParams.get('clientId') || searchParams.get('c');
   const durationParam = searchParams.get('duration');
 
-  const { professionals, appointments, addAppointment, addClient, updateClient, clients, isSyncing, blockedTimes, settings } = useData();
+  const { professionals, appointments, addAppointment, updateAppointment, addClient, updateClient, clients, isSyncing, blockedTimes, settings } = useData();
 
   const existingClient = clients.find(c => c.id === clientIdParam);
 
@@ -115,6 +115,7 @@ export default function Booking() {
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [paymentReady, setPaymentReady] = useState(false);
   const [generatedPaymentUrl, setGeneratedPaymentUrl] = useState('');
+  const [createdApptId, setCreatedApptId] = useState('');
 
   const referrerMatch = React.useMemo(() => {
     const value = formData.indicatedBy.trim();
@@ -719,12 +720,14 @@ export default function Booking() {
         console.log('BOOKING: Novo agendamento criado:', apptId);
       }
       
+      setCreatedApptId(apptId);
+      
       const valueToPay = actualDepositValue;
       
       if (valueToPay === 0) {
         console.log('BOOKING: Valor zerado, pulando pagamento.');
         setSuccess(true);
-        navigate(`/booking-success?free=true&service=${encodeURIComponent(formData.service || service || '')}`);
+        navigate(`/booking-success?free=true&apptId=${apptId}&service=${encodeURIComponent(formData.service || service || '')}`);
         return;
       }
 
@@ -734,17 +737,18 @@ export default function Booking() {
         console.log('BOOKING: Verificando método de pagamento (InfinitePay vs MP)...');
         
         // Priority: Professional Tag -> Studio Tag -> Mercado Pago API
-        const infinitePayTag = professional?.infinitePayTag || settings.infinitePayTag;
+        const rawTag = professional?.infinitePayTag || settings.infinitePayTag;
+        const infinitePayTag = rawTag?.trim().replace(/^[@$]/, '');
         
         if (infinitePayTag) {
           console.log('BOOKING: Usando InfinitePay TAG:', infinitePayTag);
           // Format with value: https://pay.infinitepay.io/TAG/VALOR
-          // InfinitePay expects value with commas for decimals or cents depending on version, 
-          // but common link format is /tag/value_in_cents or /tag/value_fixed
-          // Most robust for common tags: https://pay.infinitepay.io/TAG/VALUE
+          // InfinitePay expects value with commas for decimals or cents depending on version
           const formattedValue = valueToPay.toFixed(2).replace('.', ',');
           const infiniteLink = `https://pay.infinitepay.io/${infinitePayTag}/${formattedValue}`;
           
+          await updateAppointment(apptId, { paymentUrl: infiniteLink, paymentStatus: 'Pendente', approvalStatus: 'Aguardando Pagamento' });
+
           setGeneratedPaymentUrl(infiniteLink);
           setPaymentReady(true);
           setIsGeneratingPayment(false);
@@ -899,7 +903,7 @@ export default function Booking() {
                     setSuccess(true);
                     setTimeout(() => {
                       const method = (professional?.infinitePayTag || settings.infinitePayTag) ? 'infinitePay' : 'mp';
-                    navigate(`/booking-success?free=false&method=${method}&service=${encodeURIComponent(formData.service || service || '')}`);
+                    navigate(`/booking-success?free=false&method=${method}&apptId=${createdApptId}&service=${encodeURIComponent(formData.service || service || '')}`);
                     }, 100);
                   }}
                   className="w-full py-6 bg-primary text-black rounded-[32px] font-black text-xl uppercase tracking-[0.2em] shadow-[0_20px_50px_rgba(var(--color-primary),0.3)] hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-4 cursor-pointer"
